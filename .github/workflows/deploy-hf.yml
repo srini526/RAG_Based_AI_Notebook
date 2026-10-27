@@ -1,0 +1,30 @@
+# Pushes backend/ to a Hugging Face Space (Docker) on every change to backend/.
+# Setup: create a Docker Space, then in GitHub add secret HF_TOKEN (write token)
+# and variable HF_SPACE (e.g. "your-name/study-assistant-api").
+name: Deploy backend to Hugging Face
+on:
+  push:
+    branches: [main]
+    paths: ["backend/**", "deploy/hf-space-README.md"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ vars.HF_SPACE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync backend/ to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          set -euo pipefail
+          git clone "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" /tmp/space
+          find /tmp/space -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          rsync -a --exclude tests --exclude __pycache__ --exclude .env --exclude .pytest_cache --exclude .ruff_cache backend/ /tmp/space/
+          cp deploy/hf-space-README.md /tmp/space/README.md
+          cd /tmp/space
+          git config user.name "github-actions" && git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || (git commit -m "Deploy ${GITHUB_SHA::7}" && git push)

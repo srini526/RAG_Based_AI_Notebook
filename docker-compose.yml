@@ -1,0 +1,22 @@
+# Local/VPS run:  docker compose up --build
+# Needs backend/.env (copy from backend/.env.example)
+services:
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      ALLOWED_ORIGINS: http://localhost:8080,http://localhost:5173
+    ports: ["8000:8000"]
+    volumes: ["study-data:/app/data"]   # notebooks (SQLite) survive restarts
+    restart: unless-stopped
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports: ["8080:80"]
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  study-data:

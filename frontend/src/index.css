@@ -1,0 +1,142 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-serif: "Newsreader", Georgia, Cambria, "Times New Roman", Times, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color-scheme: light;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .font-serif-editorial {
+    font-family: var(--font-serif);
+  }
+
+  .font-mono-code {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom subtle scrollbars for warm academic feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(168, 162, 158, 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 113, 108, 0.55);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(87, 83, 78, 0.45);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 113, 108, 0.65);
+}
+
+/* Dual-theme syntax highlighting overrides for rehype-highlight */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+html:not(.dark) .hljs {
+  color: #292524;
+}
+
+html:not(.dark) .hljs-keyword,
+html:not(.dark) .hljs-selector-tag,
+html:not(.dark) .hljs-literal,
+html:not(.dark) .hljs-section,
+html:not(.dark) .hljs-link {
+  color: #9a3412;
+  font-weight: 500;
+}
+
+html:not(.dark) .hljs-string,
+html:not(.dark) .hljs-title,
+html:not(.dark) .hljs-name,
+html:not(.dark) .hljs-type,
+html:not(.dark) .hljs-attribute,
+html:not(.dark) .hljs-symbol,
+html:not(.dark) .hljs-bullet,
+html:not(.dark) .hljs-addition {
+  color: #065f46;
+}
+
+html:not(.dark) .hljs-comment,
+html:not(.dark) .hljs-quote,
+html:not(.dark) .hljs-deletion,
+html:not(.dark) .hljs-meta {
+  color: #78716c;
+  font-style: italic;
+}
+
+html:not(.dark) .hljs-number,
+html:not(.dark) .hljs-regexp,
+html:not(.dark) .hljs-variable,
+html:not(.dark) .hljs-template-variable {
+  color: #1d4ed8;
+}
+
+.dark .hljs {
+  color: #e7e5e4;
+}
+
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-literal,
+.dark .hljs-section,
+.dark .hljs-link {
+  color: #fDBA74;
+  font-weight: 500;
+}
+
+.dark .hljs-string,
+.dark .hljs-title,
+.dark .hljs-name,
+.dark .hljs-type,
+.dark .hljs-attribute,
+.dark .hljs-symbol,
+.dark .hljs-bullet,
+.dark .hljs-addition {
+  color: #6ee7b7;
+}
+
+.dark .hljs-comment,
+.dark .hljs-quote,
+.dark .hljs-deletion,
+.dark .hljs-meta {
+  color: #78716c;
+  font-style: italic;
+}
+
+.dark .hljs-number,
+.dark .hljs-regexp,
+.dark .hljs-variable,
+.dark .hljs-template-variable {
+  color: #93c5fd;
+}
