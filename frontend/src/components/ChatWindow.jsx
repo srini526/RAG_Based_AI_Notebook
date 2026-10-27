@@ -72,7 +72,7 @@ export default function ChatWindow({
 
   return (
     <main className="flex-1 overflow-y-auto bg-[#FAF8F5] transition-colors duration-200 dark:bg-[#141312]">
-      <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 py-8 sm:px-6 md:py-10">
+      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col px-4 py-5 sm:px-6 sm:py-8 md:py-10">
         <p role="status" className="sr-only">
           {loading ? "Generating a response…" : ""}
         </p>
@@ -81,7 +81,7 @@ export default function ChatWindow({
           <EmptyState hasReady={hasReady} starters={starters} onPick={onPick} />
         )}
 
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {messages.map((msg, index) => (
             <ChatMessage
               key={index}

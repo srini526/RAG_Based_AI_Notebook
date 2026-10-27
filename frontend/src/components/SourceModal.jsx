@@ -16,7 +16,7 @@ export default function SourceModal({ source, onClose }) {
   if (!source) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 pb-[env(safe-area-inset-bottom)] backdrop-blur-[2px] sm:items-center sm:p-6"
       onClick={onClose}
     >
       <div
@@ -24,9 +24,9 @@ export default function SourceModal({ source, onClose }) {
         aria-modal="true"
         aria-label={`Source: ${source.title}`}
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[80dvh] w-full max-w-2xl flex-col rounded-t-2xl border border-[#E6E1D6] bg-[#FAF8F5] shadow-xl sm:rounded-2xl dark:border-[#2A2826] dark:bg-[#1C1B19]"
+        className="flex max-h-[88dvh] w-full max-w-2xl flex-col rounded-t-2xl border border-[#E6E1D6] bg-[#FAF8F5] shadow-xl sm:max-h-[80dvh] sm:rounded-2xl dark:border-[#2A2826] dark:bg-[#1C1B19]"
       >
-        <div className="flex items-start justify-between gap-3 border-b border-[#E6E1D6] px-5 py-3.5 dark:border-[#2A2826]">
+        <div className="flex items-start justify-between gap-3 border-b border-[#E6E1D6] px-4 py-3.5 sm:px-5 dark:border-[#2A2826]">
           <div className="min-w-0">
             <p className="truncate font-serif-editorial text-base font-medium text-[#1C1917] dark:text-[#F5F2EB]">
               {source.title}
@@ -46,7 +46,7 @@ export default function SourceModal({ source, onClose }) {
             <FiX size={16} />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 py-4">
+        <div className="overflow-y-auto px-4 py-4 sm:px-5">
           <p className="whitespace-pre-wrap text-sm leading-7 text-[#292524] dark:text-[#E7E5E4]">
             {source.text || source.snippet}
           </p>

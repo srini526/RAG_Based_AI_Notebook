@@ -128,11 +128,11 @@ export default function Home({ onOpen }) {
   };
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-5 py-8 md:px-8">
-      <div className="mb-6 flex items-end justify-between gap-4">
+    <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-5 sm:px-5 sm:py-8 md:px-8">
+      <div className="mb-6 flex items-start justify-between gap-3 sm:items-end sm:gap-4">
         <div>
-          <h2 className="font-serif-editorial text-2xl font-medium text-[#1C1917] dark:text-[#F5F2EB]">Notebooks</h2>
-          <p className="mt-1 text-sm text-[#78716C] dark:text-[#A8A29E]">
+          <h2 className="font-serif-editorial text-xl font-medium text-[#1C1917] sm:text-2xl dark:text-[#F5F2EB]">Notebooks</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[#78716C] dark:text-[#A8A29E]">
             Add sources, ask questions with citations, and create study material. Everything is saved.
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function Home({ onOpen }) {
           type="button"
           onClick={create}
           disabled={creating}
-          className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl bg-[#C85A32] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#B24C28] disabled:opacity-60 dark:bg-[#D97757] dark:text-[#141312] dark:hover:bg-[#E28769]"
+          className="inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-[#C85A32] px-3 py-2 text-xs font-medium text-white transition hover:bg-[#B24C28] disabled:opacity-60 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm dark:bg-[#D97757] dark:text-[#141312] dark:hover:bg-[#E28769]"
         >
           {creating ? <FiLoader className="animate-spin" size={15} /> : <FiPlus size={16} />}
           New notebook
@@ -180,7 +180,7 @@ export default function Home({ onOpen }) {
                 type="button"
                 onClick={() => remove(nb)}
                 aria-label={`Delete ${nb.title}`}
-                className="absolute right-2 top-2 cursor-pointer rounded-lg p-1.5 text-[#A8A29E] opacity-0 transition hover:bg-red-500/10 hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
+                className="absolute right-2 top-2 cursor-pointer rounded-lg p-2 text-[#A8A29E] opacity-100 transition hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
               >
                 <FiTrash2 size={14} />
               </button>

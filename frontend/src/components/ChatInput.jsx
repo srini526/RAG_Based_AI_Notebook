@@ -65,7 +65,7 @@ useEffect(() => {
     aria-label="Choose answer style"
     aria-expanded={modeOpen}
     onClick={() => setModeOpen((open) => !open)}
-    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#35312D] bg-[#211F1D] px-3.5 py-2 text-xs font-medium text-[#E7DFD5] shadow-sm transition hover:border-[#625044] hover:bg-[#292522] focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 dark:border-[#35312D] dark:bg-[#211F1D] dark:text-[#E7DFD5]"
+    className="inline-flex min-h-10 max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-[#35312D] bg-[#211F1D] px-3 py-2 text-xs font-medium text-[#E7DFD5] shadow-sm transition hover:border-[#625044] hover:bg-[#292522] focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 sm:gap-2 sm:px-3.5 dark:border-[#35312D] dark:bg-[#211F1D] dark:text-[#E7DFD5]"
   >
     {MODES.find((m) => m.id === mode)?.label ?? "Standard answers"}
     <FiChevronDown
@@ -139,7 +139,7 @@ useEffect(() => {
               type="button"
               onClick={onStop}
               aria-label="Stop generating"
-              className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-[#1C1917] text-[#FAF8F5] transition hover:bg-[#292524] dark:bg-[#F5F2EB] dark:text-[#141312]"
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-[#1C1917] text-[#FAF8F5] transition hover:bg-[#292524] dark:bg-[#F5F2EB] dark:text-[#141312]"
             >
               <FiSquare size={14} />
             </button>
@@ -149,7 +149,7 @@ useEffect(() => {
               onClick={handleSubmit}
               disabled={blocked || !question.trim()}
               aria-label="Send"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#C85A32] text-white transition-all duration-150 hover:bg-[#B24C28] active:scale-95 disabled:cursor-not-allowed disabled:bg-[#EAE4DC] disabled:text-[#A8A29E] dark:bg-[#D97757] dark:text-[#141312] dark:hover:bg-[#E28769] dark:disabled:bg-[#262421] dark:disabled:text-[#57534E] cursor-pointer"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C85A32] text-white transition-all duration-150 hover:bg-[#B24C28] active:scale-95 disabled:cursor-not-allowed disabled:bg-[#EAE4DC] disabled:text-[#A8A29E] dark:bg-[#D97757] dark:text-[#141312] dark:hover:bg-[#E28769] dark:disabled:bg-[#262421] dark:disabled:text-[#57534E] cursor-pointer"
             >
               <FiArrowUp size={18} className="stroke-[2.2]" />
             </button>

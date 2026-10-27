@@ -63,7 +63,7 @@ export default function StudioPanel({ studio, hasReady, scopeCount, onCite }) {
   }
 
   return (
-    <div className="space-y-4 p-3.5">
+    <div className="mx-auto w-full max-w-3xl space-y-4 p-4 sm:p-5 xl:p-3.5">
       <div>
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
           Studio
@@ -84,7 +84,7 @@ export default function StudioPanel({ studio, hasReady, scopeCount, onCite }) {
             type="button"
             disabled={!hasReady}
             onClick={() => studio.generate(id)}
-            className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] px-3 py-2.5 text-left text-xs font-medium text-[#292524] shadow-2xs transition enabled:hover:border-[#C85A32]/60 enabled:hover:text-[#C85A32] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#2A2826] dark:bg-[#22201E] dark:text-[#E7E5E4] dark:enabled:hover:border-[#D97757]/60 dark:enabled:hover:text-[#D97757]"
+            className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] px-3 py-2.5 text-left text-xs font-medium text-[#292524] shadow-2xs transition enabled:hover:border-[#C85A32]/60 enabled:hover:text-[#C85A32] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#2A2826] dark:bg-[#22201E] dark:text-[#E7E5E4] dark:enabled:hover:border-[#D97757]/60 dark:enabled:hover:text-[#D97757]"
           >
             <Icon size={14} className="shrink-0" />
             {label}

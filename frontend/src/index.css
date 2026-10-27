@@ -140,3 +140,135 @@ html:not(.dark) .hljs-template-variable {
 .dark .hljs-template-variable {
   color: #93c5fd;
 }
+/* App-wide responsive foundations */
+@layer base {
+  html {
+    min-width: 320px;
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100%;
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  #root {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid #c85a32;
+    outline-offset: 2px;
+  }
+
+  .dark button:focus-visible,
+  .dark a:focus-visible,
+  .dark input:focus-visible,
+  .dark textarea:focus-visible,
+  .dark select:focus-visible,
+  .dark [role="button"]:focus-visible {
+    outline-color: #d97757;
+  }
+}
+
+/* The notebook uses a single active panel on mobile and tablet. The inline
+   CSS variables keep desktop panel resizing intact without forcing the
+   three-column layout into narrow viewports. */
+.notebook-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.notebook-layout > * {
+  min-width: 0;
+}
+
+@media (min-width: 80rem) {
+  .notebook-layout {
+    grid-template-columns:
+      var(--sources-panel-width, 300px) 6px minmax(0, 1fr) 6px
+      var(--studio-panel-width, 340px);
+  }
+}
+
+.mobile-panel-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.chat-input-shell {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* Long AI responses, links, tables, and code should scroll inside their own
+   content area instead of widening the entire app. */
+.prose {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.prose pre {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.prose pre code {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.prose img,
+.prose video {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 639px) {
+  .prose pre {
+    padding: 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .prose th,
+  .prose td {
+    padding: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -157,7 +157,7 @@ export default function LibraryPanel({
   const accept = config.allowed_extensions.map((e) => `.${e}`).join(",");
 
   return (
-    <section className="space-y-3 px-3.5 pb-4 pt-2">
+    <section className="mx-auto w-full max-w-3xl space-y-3 px-3.5 pb-5 pt-4 sm:px-5 xl:px-3.5 xl:pt-2">
       <div className="flex items-center justify-between">
         {!hideHeader ? (
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
@@ -223,7 +223,7 @@ export default function LibraryPanel({
       </div>
 
       {/* Link Input */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-2">
         <div className="relative flex-1">
           <FiLink
             size={13}
@@ -240,7 +240,7 @@ export default function LibraryPanel({
         <button
           onClick={submitLink}
           disabled={adding || !url.trim()}
-          className="rounded-xl bg-[#1C1917] px-3 py-2 text-xs font-medium text-[#FAF8F5] transition hover:bg-[#292524] disabled:cursor-not-allowed disabled:bg-[#E6E1D6] disabled:text-[#A8A29E] dark:bg-[#F5F2EB] dark:text-[#141312] dark:hover:bg-[#E7E5E4] dark:disabled:bg-[#262421] dark:disabled:text-[#57534E] cursor-pointer"
+          className="min-h-10 rounded-xl bg-[#1C1917] px-3 py-2 text-xs font-medium text-[#FAF8F5] transition hover:bg-[#292524] disabled:cursor-not-allowed disabled:bg-[#E6E1D6] disabled:text-[#A8A29E] dark:bg-[#F5F2EB] dark:text-[#141312] dark:hover:bg-[#E7E5E4] dark:disabled:bg-[#262421] dark:disabled:text-[#57534E] cursor-pointer"
         >
           {adding ? "…" : "Add"}
         </button>

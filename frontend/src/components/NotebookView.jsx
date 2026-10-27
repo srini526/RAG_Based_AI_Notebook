@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { FiAlertTriangle, FiRefreshCw, FiWifiOff } from "react-icons/fi";
+import { FiAlertTriangle, FiBookOpen, FiLayers, FiMessageCircle, FiRefreshCw, FiWifiOff } from "react-icons/fi";
 
 import useChat from "../hooks/useChat";
 import useSources from "../hooks/useSources";
@@ -107,13 +107,14 @@ export default function NotebookView({ nid, data, theme, onHome }) {
 
       {sources.serverDown && (
         <div className="flex items-center justify-between gap-4 border-b border-red-500/20 bg-red-500/8 px-4 py-2.5 text-xs text-red-900 dark:bg-red-500/10 dark:text-red-200 sm:text-sm">
-          <span className="flex items-center gap-2">
-            <FiWifiOff size={15} /> Can&apos;t reach the server. It may be waking up – try again in a few seconds.
+          <span className="flex min-w-0 items-center gap-2">
+            <FiWifiOff className="shrink-0" size={15} />
+            <span>Can&apos;t reach the server. It may be waking up – try again in a few seconds.</span>
           </span>
           <button
             type="button"
             onClick={sources.retry}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+            className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white hover:bg-red-700"
           >
             <FiRefreshCw size={12} /> Retry
           </button>
@@ -125,13 +126,15 @@ export default function NotebookView({ nid, data, theme, onHome }) {
         onPointerMove={moveResize}
         onPointerUp={stopResize}
         onPointerCancel={stopResize}
-        className="grid min-h-0 flex-1"
+        className="notebook-layout grid min-h-0 flex-1"
         style={{
-        gridTemplateColumns: `${sourcesWidth}px 6px minmax(0, 1fr) 6px ${studioWidth}px`,
-        }}>
+          "--sources-panel-width": `${sourcesWidth}px`,
+          "--studio-panel-width": `${studioWidth}px`,
+        }}
+      >
         <aside
           aria-label="Sources"
-          className={`${tab === "sources" ? "flex" : "hidden"} lg:flex ${PANEL} border-r border-[#E6E1D6] dark:border-[#2A2826]`}
+          className={`${tab === "sources" ? "flex" : "hidden"} xl:flex ${PANEL} border-r border-[#E6E1D6] dark:border-[#2A2826]`}
         >
           <LibraryPanel
             docs={sources.docs}
@@ -154,12 +157,12 @@ export default function NotebookView({ nid, data, theme, onHome }) {
           role="separator"
           aria-label="Resize Sources panel"
           onPointerDown={(e) => startResize("sources", e)}
-          className="group z-10 flex cursor-col-resize touch-none justify-center">
+          className="panel-resizer group z-10 hidden cursor-col-resize touch-none justify-center xl:flex">
           <div className="h-full w-px bg-[#2A2826] group-hover:w-[3px] group-hover:bg-[#D97757]" />
         </div>
 
 
-        <main className={`${tab === "chat" ? "flex" : "hidden"} min-h-0 min-w-0 flex-col lg:flex`}>
+        <main className={`${tab === "chat" ? "flex" : "hidden"} min-h-0 min-w-0 flex-col xl:flex`}>
           {chat.messages.length > 0 && (
             <div className="flex justify-end px-4 pt-2 md:px-6">
               <button
@@ -196,12 +199,12 @@ export default function NotebookView({ nid, data, theme, onHome }) {
           role="separator"
           aria-label="Resize Studio panel"
           onPointerDown={(e) => startResize("studio", e)}
-          className="group z-10 flex cursor-col-resize touch-none justify-center">
+          className="panel-resizer group z-10 hidden cursor-col-resize touch-none justify-center xl:flex">
           <div className="h-full w-px bg-[#2A2826] group-hover:w-[3px] group-hover:bg-[#D97757]" />
         </div>
         <aside
           aria-label="Studio"
-          className={`${tab === "studio" ? "flex" : "hidden"} lg:flex ${PANEL} border-l border-[#E6E1D6] dark:border-[#2A2826]`}
+          className={`${tab === "studio" ? "flex" : "hidden"} xl:flex ${PANEL} border-l border-[#E6E1D6] dark:border-[#2A2826]`}
         >
           <StudioPanel
             studio={{ ...studio, generate: (kind) => studio.generate(kind, scope) }}
@@ -212,20 +215,27 @@ export default function NotebookView({ nid, data, theme, onHome }) {
         </aside>
       </div>
 
-      <nav aria-label="Panels" className="flex shrink-0 border-t border-[#E6E1D6] bg-[#FAF8F5] lg:hidden dark:border-[#2A2826] dark:bg-[#141312]">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            aria-current={tab === t.id ? "page" : undefined}
-            className={`flex-1 cursor-pointer py-3 text-xs font-medium transition ${
-              tab === t.id ? "text-[#C85A32] dark:text-[#D97757]" : "text-[#78716C] dark:text-[#A8A29E]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      <nav aria-label="Notebook panels" className="mobile-panel-nav flex shrink-0 border-t border-[#E6E1D6] bg-[#FAF8F5] xl:hidden dark:border-[#2A2826] dark:bg-[#141312]">
+        {TABS.map((t) => {
+          const Icon = t.id === "sources" ? FiBookOpen : t.id === "chat" ? FiMessageCircle : FiLayers;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-t-2 text-xs font-medium transition ${
+                active
+                  ? "border-[#C85A32] bg-[#C85A32]/5 text-[#C85A32] dark:border-[#D97757] dark:bg-[#D97757]/8 dark:text-[#D97757]"
+                  : "border-transparent text-[#78716C] hover:bg-[#F3EFEA] dark:text-[#A8A29E] dark:hover:bg-[#1C1B19]"
+              }`}
+            >
+              <Icon size={17} aria-hidden="true" />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
       </nav>
 
       <SourceModal source={cited} onClose={closeCite} />
