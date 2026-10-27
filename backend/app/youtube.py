@@ -111,12 +111,13 @@ def download_audio(video_id: str, workdir: str, settings) -> str:
             ydl.download([url])
     except UserError:
         raise
-    except Exception:
-        log.warning("yt-dlp failed for %s", video_id, exc_info=True)
+    except Exception as e:
+        log.exception("yt-dlp failed for video %s", video_id)
         raise UserError(
-            "This video has no captions and its audio couldn't be downloaded "
-            "(YouTube often blocks cloud servers). Upload the video file instead."
-        )
+            "YouTube audio download failed on the server. "
+            "Something went wrong"
+            "Try uploading the video file instead."
+        ) from e
     files = [f for f in os.listdir(workdir) if f.startswith("yt.")]
     if not files:
         raise UserError("Couldn't download the audio for this video.")
