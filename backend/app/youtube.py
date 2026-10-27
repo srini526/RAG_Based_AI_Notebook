@@ -112,11 +112,13 @@ def download_audio(video_id: str, workdir: str, settings) -> str:
     except UserError:
         raise
     except Exception as e:
-        log.exception("yt-dlp failed for video %s", video_id)
+        log.exception(
+            "YouTube download failed: video_id=%s error=%r",
+            video_id,
+            e,
+        )
         raise UserError(
-            "YouTube audio download failed on the server. "
-            "Something went wrong. "
-            "Try uploading the video file instead."
+            "YouTube download failed. Check server logs for details."
         ) from e
     files = [f for f in os.listdir(workdir) if f.startswith("yt.")]
     if not files:
