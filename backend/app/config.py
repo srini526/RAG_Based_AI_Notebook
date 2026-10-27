@@ -22,7 +22,7 @@ class Settings:
     groq_api_key: str = ""
     cf_account_id: str = ""
     cf_api_token: str = ""
-    llm_model: str = "openai/gpt-oss-20b"
+    llm_model: str = "openai/gpt-oss-120b"
     whisper_model: str = "whisper-large-v3"
     whisper_language: str = ""  # empty = auto-detect
     embedding_model: str = "@cf/baai/bge-m3"
