@@ -41,9 +41,24 @@ def create_app(settings: Settings | None = None, *, embeddings=None, chains=None
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops, x_proto=1, x_host=1)
     sweep_stale_workdirs()
 
-    CORS(app, origins=list(settings.allowed_origins),
-         allow_headers=["Content-Type", "X-Owner-Key", "X-Notebook-Id"],
-         methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"], max_age=600)
+    allowed_origins = [
+        origin.strip().rstrip("/")
+        for origin in settings.allowed_origins
+        if origin.strip()
+    ]
+
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": allowed_origins}},
+        allow_headers=[
+            "Content-Type",
+            "X-Owner-Key",
+            "X-Notebook-Id",
+            "Authorization",
+        ],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        max_age=600,
+    )
 
     limiter = Limiter(get_remote_address, app=app, default_limits=[settings.rate_limit_default],
                       storage_uri="memory://", enabled=settings.rate_limit_enabled,
