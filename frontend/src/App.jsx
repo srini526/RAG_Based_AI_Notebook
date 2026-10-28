@@ -8,6 +8,7 @@ import useRoute from "./hooks/useRoute";
 import useTheme from "./hooks/useTheme";
 import { getNotebook } from "./services/api";
 import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/react"
 
 /** Loads one notebook from the server, then hands it to the three-panel view. */
 function NotebookPage({ nid, theme, onHome }) {
@@ -54,6 +55,7 @@ export default function App() {
       <Header theme={theme} />
       <Home onOpen={open} />
       <Analytics />
+      <SpeedInsights />
     </div>
   );
 }
