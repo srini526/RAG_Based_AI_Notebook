@@ -7,6 +7,7 @@ import NotebookView, { NotebookProblem } from "./components/NotebookView";
 import useRoute from "./hooks/useRoute";
 import useTheme from "./hooks/useTheme";
 import { getNotebook } from "./services/api";
+import { Analytics } from "@vercel/analytics/react"
 
 /** Loads one notebook from the server, then hands it to the three-panel view. */
 function NotebookPage({ nid, theme, onHome }) {
@@ -52,6 +53,7 @@ export default function App() {
     <div className="flex h-dvh flex-col bg-[#FAF8F5] text-[#1C1917] transition-colors duration-200 dark:bg-[#141312] dark:text-[#F5F2EB]">
       <Header theme={theme} />
       <Home onOpen={open} />
+      <Analytics />
     </div>
   );
 }
