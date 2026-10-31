@@ -225,7 +225,7 @@ def test_real_chains_wiring():
                               "MindMap": {"title": "M", "branches": [{"label": "b", "children": ["c"]}]},
                               "Flashcards": {"cards": [{"front": "f", "back": "b"}]},
                               "SourceGuide": {"summary": "s", "topics": ["t"], "questions": ["q?"]}})
-    chains = Chains(Settings(), llm=llm)
+    chains = Chains(Settings(), llm=llm, studio_llm=llm)
     hist = [AIMessage(content="earlier")]
     assert chains.analyze.invoke({"history": hist, "question": "q", "library_titles": "a.pdf"}).query == "closure scope"
     assert chains.grade.invoke({"question": "q", "passages": "[1] x"}).relevant == [2]

@@ -72,46 +72,185 @@ def _unconfigured(_input):
     raise UserError("The AI service is not configured on the server.")
 
 
-class Chains:
-    """Bundle of runnables. Any of them can be overridden (used by tests)."""
 
-    def __init__(self, settings, llm=None, **overrides: Runnable) -> None:
+class Chains:
+    """Separate model bundles for RAG and Studio."""
+
+    def __init__(
+        self,
+        settings,
+        llm=None,
+        studio_llm=None,
+        **overrides: Runnable,
+    ) -> None:
         self._s = settings
+
+        # --------------------------------------------------
+        # RAG MODEL: Groq
+        # --------------------------------------------------
         if llm is None and settings.groq_api_key:
             from langchain_groq import ChatGroq
 
-            llm = ChatGroq(model=settings.llm_model, temperature=0.1,
-                           api_key=settings.groq_api_key, max_retries=3, timeout=60)
+            llm = ChatGroq(
+                model=settings.llm_model,
+                temperature=0.1,
+                api_key=settings.groq_api_key,
+                max_retries=3,
+                timeout=60,
+            )
+
         self.llm = llm
+
+        # --------------------------------------------------
+        # STUDIO MODEL: Cloudflare Workers AI
+        # --------------------------------------------------
+        if (
+            studio_llm is None
+            and settings.cf_account_id
+            and settings.cf_api_token
+        ):
+            from langchain_cloudflare.chat_models import (
+                ChatCloudflareWorkersAI,
+            )
+
+            studio_llm = ChatCloudflareWorkersAI(
+                account_id=settings.cf_account_id,
+                api_token=settings.cf_api_token,
+                model=settings.studio_llm_model,
+                temperature=0.1,
+            )
+
+        self.studio_llm = studio_llm
+
         off = RunnableLambda(_unconfigured)
 
+        # RAG chain builder
         def build(name: str, make) -> Runnable:
             if name in overrides:
                 return overrides[name]
-            return make() if llm is not None else off
+            return make() if self.llm is not None else off
 
-        self.analyze = build("analyze", lambda: prompts.ANALYZE | llm.with_structured_output(Analysis))
-        self.grade = build("grade", lambda: prompts.GRADE | llm.with_structured_output(Grades))
-        self.rewrite = build("rewrite", lambda: prompts.REWRITE | llm | StrOutputParser())
-        self.generate = build("generate", lambda: prompts.GENERATE | llm | StrOutputParser())
-        self.check = build("check", lambda: prompts.CHECK | llm.with_structured_output(GroundingCheck))
-        self.chat = build("chat", lambda: prompts.CHAT | llm | StrOutputParser())
-        # Studio tools
+        # Studio chain builder
+        def build_studio(name: str, make) -> Runnable:
+            if name in overrides:
+                return overrides[name]
+            return make() if self.studio_llm is not None else off
+
+        # --------------------------------------------------
+        # RAG CHAINS - GROQ ONLY
+        # --------------------------------------------------
+        self.analyze = build(
+            "analyze",
+            lambda: prompts.ANALYZE
+            | self.llm.with_structured_output(Analysis),
+        )
+
+        self.grade = build(
+            "grade",
+            lambda: prompts.GRADE
+            | self.llm.with_structured_output(Grades),
+        )
+
+        self.rewrite = build(
+            "rewrite",
+            lambda: prompts.REWRITE
+            | self.llm
+            | StrOutputParser(),
+        )
+
+        self.generate = build(
+            "generate",
+            lambda: prompts.GENERATE
+            | self.llm
+            | StrOutputParser(),
+        )
+
+        self.check = build(
+            "check",
+            lambda: prompts.CHECK
+            | self.llm.with_structured_output(GroundingCheck),
+        )
+
+        self.chat = build(
+            "chat",
+            lambda: prompts.CHAT
+            | self.llm
+            | StrOutputParser(),
+        )
+
+        # --------------------------------------------------
+        # STUDIO CHAINS - CLOUDFLARE ONLY
+        # --------------------------------------------------
+
         for kind, prompt in prompts.STUDIO.items():
-            setattr(self, kind, build(kind, lambda p=prompt: p | llm | StrOutputParser()))
-        self.mindmap = build("mindmap", lambda: prompts.MINDMAP | llm.with_structured_output(MindMap))
-        self.flashcards = build("flashcards", lambda: prompts.FLASHCARDS | llm.with_structured_output(Flashcards))
-        self.quiz = build("quiz", lambda: prompts.QUIZ | llm.with_structured_output(Quiz))
-        self.suggest = build("suggest", lambda: prompts.SUGGEST | llm.with_structured_output(SuggestedQuestions))
-        self.guide = build("guide", lambda: prompts.GUIDE | llm.with_structured_output(SourceGuide))
+            setattr(
+                self,
+                kind,
+                build_studio(
+                    kind,
+                    lambda p=prompt: p
+                    | self.studio_llm
+                    | StrOutputParser(),
+                ),
+            )
+
+        # Structured output uses JSON Schema, not function calling.
+        self.mindmap = build_studio(
+            "mindmap",
+            lambda: prompts.MINDMAP
+            | self.studio_llm.with_structured_output(
+                MindMap,
+                method="json_schema",
+            ),
+        )
+
+        self.flashcards = build_studio(
+            "flashcards",
+            lambda: prompts.FLASHCARDS
+            | self.studio_llm.with_structured_output(
+                Flashcards,
+                method="json_schema",
+            ),
+        )
+
+        self.quiz = build_studio(
+            "quiz",
+            lambda: prompts.QUIZ
+            | self.studio_llm.with_structured_output(
+                Quiz,
+                method="json_schema",
+            ),
+        )
+
+        self.suggest = build_studio(
+            "suggest",
+            lambda: prompts.SUGGEST
+            | self.studio_llm.with_structured_output(
+                SuggestedQuestions,
+                method="json_schema",
+            ),
+        )
+
+        self.guide = build_studio(
+            "guide",
+            lambda: prompts.GUIDE
+            | self.studio_llm.with_structured_output(
+                SourceGuide,
+                method="json_schema",
+            ),
+        )
 
     def safe(self, chain: Runnable, inputs: dict, default):
-        """Run a structured chain; on any failure log and return `default` so the graph keeps going."""
+        """Run a structured chain and return default on failure."""
         try:
             out = chain.invoke(inputs)
             return default if out is None else out
         except UserError:
             raise
         except Exception:
-            log.warning("chain call failed; using default", exc_info=True)
+            log.warning(
+                "chain call failed; using default",
+                exc_info=True,
+            )
             return default
+

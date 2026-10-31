@@ -22,6 +22,7 @@ class Settings:
     groq_api_key: str = ""
     cf_account_id: str = ""
     cf_api_token: str = ""
+    studio_llm_model: str = "@cf/openai/gpt-oss-120b"
     llm_model: str = "openai/gpt-oss-120b"
     whisper_model: str = "whisper-large-v3"
     whisper_language: str = ""  # empty = auto-detect
@@ -124,4 +125,5 @@ class Settings:
             rate_limit_ingest=os.getenv("RATE_LIMIT_INGEST", cls.rate_limit_ingest),
             youtube_proxy_url=os.getenv("YOUTUBE_PROXY_URL", ""),
             ytdlp_cookies_file=os.getenv("YTDLP_COOKIES_FILE", ""),
+            studio_llm_model=os.getenv("STUDIO_LLM_MODEL",cls.studio_llm_model,),
         )
