@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { FiLoader } from "react-icons/fi";
 
-import Header from "./components/Header";
-import Home from "./components/Home";
-import NotebookView, { NotebookProblem } from "./components/NotebookView";
-import useRoute from "./hooks/useRoute";
-import useTheme from "./hooks/useTheme";
-import { getNotebook } from "./services/api";
+import Header from "./components/Header.jsx";
+import Home from "./components/Home.jsx";
+import NotebookView, { NotebookProblem } from "./components/NotebookView.jsx";
+import useRoute from "./hooks/useRoute.js";
+import useTheme from "./hooks/useTheme.js";
+import { getNotebook } from "./services/api.js";
 import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/react"
 

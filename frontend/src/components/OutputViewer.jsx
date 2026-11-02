@@ -12,11 +12,11 @@ import {
   FiX,
 } from "react-icons/fi";
 
-import Flashcards from "./Flashcards";
-import MindMap from "./MindMap";
-import Panel from "./Panel";
-import Quiz from "./Quiz";
-import { SourceChip } from "./SourceCard";
+import Flashcards from "./Flashcards.jsx";
+import MindMap from "./MindMap.jsx";
+import Panel from "./Panel.jsx";
+import Quiz from "./Quiz.jsx";
+import { SourceChip } from "./SourceCard.jsx";
 import { TOOL } from "../hooks/Studiotools.js";
 import { ICON_BTN } from "../hooks/Ui.js";
 

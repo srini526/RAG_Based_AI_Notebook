@@ -10,19 +10,19 @@ import {
   FiWifiOff,
 } from "react-icons/fi";
 
-import useChat from "../hooks/useChat";
-import useSources from "../hooks/useSources";
-import useStudio from "../hooks/useStudio";
-import { renameNotebook } from "../services/api";
-import { downloadChat } from "../utils/exportChat";
-import ChatInput from "./ChatInput";
-import ChatWindow from "./ChatWindow";
-import Header from "./Header";
-import LibraryPanel from "./LibraryPanel";
-import Panel, { Rail } from "./Panel";
-import SourceModal from "./SourceModal";
-import StudioPanel from "./StudioPanel";
-import { ICON_BTN } from "../hooks/Ui";
+import useChat from "../hooks/useChat.js";
+import useSources from "../hooks/useSources.js";
+import useStudio from "../hooks/useStudio.js";
+import { renameNotebook } from "../services/api.js";
+import { downloadChat } from "../utils/exportChat.js";
+import ChatInput from "./ChatInput.jsx";
+import ChatWindow from "./ChatWindow.jsx";
+import Header from "./Header.jsx";
+import LibraryPanel from "./LibraryPanel.jsx";
+import Panel, { Rail } from "./Panel.jsx";
+import SourceModal from "./SourceModal.jsx";
+import StudioPanel from "./StudioPanel.jsx";
+import { ICON_BTN } from "../hooks/Ui.js";
 
 const TABS = [
   { id: "sources", label: "Sources", icon: FiBookOpen },

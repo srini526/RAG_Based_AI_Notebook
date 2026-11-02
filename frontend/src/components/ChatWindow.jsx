@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { FiBookOpen, FiUploadCloud } from "react-icons/fi";
-import ChatMessage from "./ChatMessage";
-import TypingIndicator from "./TypingIndicator";
+import ChatMessage from "./ChatMessage.jsx";
+import TypingIndicator from "./TypingIndicator.jsx";
 
 function EmptyState({ hasReady, starters, onPick }) {
   return (

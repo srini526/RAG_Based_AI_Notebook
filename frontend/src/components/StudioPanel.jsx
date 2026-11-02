@@ -1,7 +1,7 @@
 import { FiAlertCircle, FiChevronsRight, FiFolder, FiLoader, FiTrash2, FiX } from "react-icons/fi";
 
-import OutputViewer from "./OutputViewer";
-import Panel from "./Panel";
+import OutputViewer from "./OutputViewer.jsx";
+import Panel from "./Panel.jsx";
 import { ago, TOOL, TOOLS } from "../hooks/Studiotools.js";
 import { ICON_BTN } from "../hooks/Ui.js";
 

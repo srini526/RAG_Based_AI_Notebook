@@ -1,11 +1,11 @@
 import { lazy, Suspense, useState } from "react";
 import { FiCheck, FiCopy, FiRefreshCw } from "react-icons/fi";
 
-import { SourceChip } from "./SourceCard";
-import { TOOL } from "../hooks/Studiotools";
-import StepProgress from "./StepProgress";
+import { SourceChip } from "./SourceCard.jsx";
+import { TOOL } from "../hooks/Studiotools.js";
+import StepProgress from "./StepProgress.jsx";
 
-const Markdown = lazy(() => import("./Markdown"));
+const Markdown = lazy(() => import("./Markdown.jsx"));
 
 const ACTION =
   "inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-[#78716C] transition hover:bg-[#EAE4DC]/70 hover:text-[#1C1917] dark:text-[#A8A29E] dark:hover:bg-[#22201E] dark:hover:text-[#F5F2EB] cursor-pointer";

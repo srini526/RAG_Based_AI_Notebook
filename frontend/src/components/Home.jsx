@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FiBookOpen, FiCheck, FiCopy, FiKey, FiLoader, FiPlus, FiTrash2 } from "react-icons/fi";
 
-import { createNotebook, deleteNotebook, getOwnerKey, listNotebooks, setOwnerKey } from "../services/api";
+import { createNotebook, deleteNotebook, getOwnerKey, listNotebooks, setOwnerKey } from "../services/api.js";
 
 const TINTS = [
   "bg-orange-50 text-orange-700 dark:bg-orange-400/10 dark:text-orange-300",
