@@ -24,7 +24,8 @@ OK = {"X-Owner-Key": OWNER}
 
 def boot(repo, script=None, **settings):
     """A fresh app process on top of an existing database."""
-    st = Settings(rate_limit_enabled=False, **settings)
+    legacy = {"fast_router": False, "grade_mode": "llm", "self_check_min_chars": 0}
+    st = Settings(rate_limit_enabled=False, **{**legacy, **settings})
     app = create_app(st, embeddings=FakeEmbeddings(), chains=(script or Script()).chains(st),
                      web=FakeWeb(), transcriber=FakeTranscriber(), repo=repo)
     return app.test_client()

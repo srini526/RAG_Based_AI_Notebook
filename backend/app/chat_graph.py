@@ -2,9 +2,9 @@
 
     START -> analyze --direct--> answer_direct ----------------------------+
                 |                                                          |
-                +--library--> retrieve -> grade --relevant--> generate -> self_check --ok--> finalize -> END
-                                 ^           |                   ^             |retry (max 1)
-                                 |           +--none, tries left--> rewrite    +-------------+
+                +--library--> retrieve -> grade --relevant--> rerank -> generate -> self_check --ok--> finalize -> END
+                                 ^           |                             ^               |retry (max 1)
+                                 |           +--none, tries left--> rewrite +---------------+
                                  +---------------------------------+
                                              |none, out of tries
                                              +--> web_search --results--> generate
@@ -17,6 +17,7 @@ Server-Sent Events: {"step"}, {"token"}, {"reset"} and {"done"}. Conversation me
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Annotated, Iterator, TypedDict
 
@@ -28,9 +29,12 @@ from langgraph.runtime import Runtime
 from langgraph.types import StreamWriter
 
 from . import prompts
-from .answer import build_sources, cited_only, format_context
-from .chains import Analysis, Chains, Grades, GroundingCheck
+from .answer import build_sources, cited_only, format_context, invalid_citations
+from .chains import STUDIO_TOOLS, Analysis, Chains, Grades, GroundingCheck
+from .errors import UserError
+from .generate import TITLES
 from .store import Library
+from .studio_intent import detect_studio_request
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +46,7 @@ STEP_LABELS = {
     "retrieve": "Searching your library",
     "retrieve_again": "Searching again with a new query",
     "grade": "Checking which passages are relevant",
+    "rerank": "Reranking relevant passages",
     "rewrite": "Rephrasing the question",
     "web_search": "Nothing found in your library, searching the web",
     "generate": "Writing the answer",
@@ -67,21 +72,44 @@ class ChatState(TypedDict, total=False):
     # per-turn working state (reset by `analyze`)
     question: str
     doc_ids: list[str]
-    style: str         # normal | simple | exam | deep
+    style: str          # normal | simple | exam | deep
     standalone: str
     query: str
     tried: list[str]
     attempts: int
     route: str
+    tool: str           # Studio tool asked for in chat (route == studio)
+    focus: str          # optional topic for that tool
     docs: list[Document]
     relevant: list[Document]
-    mode: str          # library | web | direct | none
+    mode: str           # library | web | direct | studio | none
     context: str
     answer: str
     sources: list[dict]
     regen: int
     issues: str
-    verdict: str       # ok | retry | flagged
+    verdict: str        # ok | retry | flagged
+
+
+_SMALL_TALK = re.compile(
+    r"^\s*(hi|hello|hey|hola|namaste|thanks|thank you|thx|ok|okay|cool|bye|good (morning|evening|night)"
+    r"|who are you|what can you do|help)\b[\s!.?]*$", re.I)
+
+
+def _is_small_talk(text: str) -> bool:
+    return len(text) <= 40 and bool(_SMALL_TALK.match(text))
+
+
+def _describe(content: dict) -> str:
+    """A few words on what was made, e.g. " with 8 questions"."""
+    if content.get("quiz"):
+        return f" with {len(content['quiz']['questions'])} questions"
+    if content.get("flashcards"):
+        return f" with {len(content['flashcards'])} cards"
+    if content.get("mindmap"):
+        return f" with {len(content['mindmap']['branches'])} branches"
+    words = len(content.get("markdown", "").split())
+    return f" (about {words} words)" if words else ""
 
 
 def _history(messages: list[AnyMessage], limit: int) -> list[AnyMessage]:
@@ -94,7 +122,8 @@ def _titles(lib: Library) -> str:
     return ", ".join(names)[:600] or "(nothing yet)"
 
 
-def build_chat_graph(settings, chains: Chains, web, checkpointer):
+def build_chat_graph(settings, chains: Chains, web, checkpointer, generator=None, budget=None, reranker=None):
+    """`generator` (the Studio generator) lets chat hand "make me a quiz" to the Studio model."""
     s = settings
 
     # ---------------------------------------------------------------- nodes
@@ -102,17 +131,31 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
         writer(_step("analyze"))
         question = state["question"]
         lib = runtime.context.lib
-        res = chains.safe(
-            chains.analyze,
-            {"history": _history(state["messages"][:-1], s.max_history_messages),
-             "question": question, "library_titles": _titles(lib)},
-            Analysis(route="library", query=question),
-        )
-        if isinstance(res, dict):
-            res = Analysis(**res)
+        past = _history(state["messages"][:-1], s.max_history_messages)
+        tool = focus = ""
+        intent = detect_studio_request(question) if generator else None
+        if intent:  # "make me a quiz on X": no router call needed
+            tool, focus = intent
+            res = Analysis(route="studio", query=focus, tool=tool)
+        elif s.fast_router and (not past or _is_small_talk(question)):
+            # First message has no references to resolve, so no router call is needed.
+            res = Analysis(route="direct" if _is_small_talk(question) else "library", query=question)
+        else:
+            res = chains.safe(
+                chains.analyze,
+                {"history": past, "question": question, "library_titles": _titles(lib)},
+                Analysis(route="library", query=question),
+            )
+            if isinstance(res, dict):
+                res = Analysis(**res)
+            if res.route == "studio":  # the router may spot requests the keyword check missed
+                if generator and res.tool in STUDIO_TOOLS:
+                    tool, focus = res.tool, (res.query or "").strip()
+                else:
+                    res = Analysis(route="library", query=question)
         query = (res.query or "").strip() or question
         return {
-            "route": res.route, "standalone": query, "query": query, "tried": [query],
+            "route": res.route, "tool": tool, "focus": focus, "standalone": query, "query": query, "tried": [query],
             "attempts": 0, "docs": [], "relevant": [], "mode": "library", "context": "",
             "answer": "", "sources": [], "regen": 0, "issues": "", "verdict": "",
         }
@@ -121,8 +164,16 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
         again = state.get("attempts", 0) > 0
         writer(_step("retrieve", "retrieve_again" if again else "retrieve", attempt=state.get("attempts", 0)))
         ids = set(state.get("doc_ids") or []) or None
+
+        # Step 2: Retrieval candidate expansion
+        candidate_k = (
+            max(s.top_k, s.reranker_candidate_k)
+            if reranker is not None and s.reranker_enabled
+            else s.top_k
+        )
+
         docs = []
-        for d, score in runtime.context.lib.search(state["query"], s.top_k, ids):
+        for d, score in runtime.context.lib.search(state["query"], candidate_k, ids):
             md = dict(d.metadata)
             md["score"] = score
             docs.append(Document(page_content=d.page_content, metadata=md))
@@ -132,8 +183,16 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
         docs = state["docs"]
         if not docs:
             return {"relevant": []}
-        if not s.grade_docs:
+        if s.grade_mode == "off":
             return {"relevant": docs}
+        if s.grade_mode == "score":
+            # Step 3: Bypass early score filtering when reranker is active
+            if reranker is not None and s.reranker_enabled:
+                return {"relevant": docs}
+            scores = [round(d.metadata.get("score", 0), 3) for d in docs]
+            keep = [d for d in docs if d.metadata.get("score", 0) >= s.min_score]
+            log.debug("grade(score): min=%s scores=%s kept=%d", s.min_score, scores, len(keep))
+            return {"relevant": keep}
         writer(_step("grade"))
         passages = "\n\n".join(f"[{i}] {d.page_content[:700]}" for i, d in enumerate(docs, 1))
         res = chains.safe(
@@ -148,9 +207,26 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
                 keep.append(i)
         return {"relevant": [docs[i - 1] for i in keep]}
 
+    def rerank(state: ChatState, writer: StreamWriter):
+        # Step 4: Reranker node definition
+        docs = state["relevant"]
+        if not reranker or not docs:
+            return {}
+        writer(_step("rerank"))
+        try:
+            ranked_docs = reranker.rerank(
+                state["query"],
+                docs,
+                top_k=s.top_k,
+            )
+            return {"relevant": ranked_docs}
+        except Exception:
+            log.exception("Reranking failed; using original retrieval order")
+            return {"relevant": docs[:s.top_k]}
+
     def after_grade(state: ChatState) -> str:
         if state["relevant"]:
-            return "generate"
+            return "rerank"
         if state["attempts"] < s.max_rewrites:
             return "rewrite"
         return "web_search" if web.available else "not_found"
@@ -211,20 +287,35 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
         return {"answer": prefix + "".join(parts), "sources": sources, "context": context}
 
     def self_check(state: ChatState, writer: StreamWriter):
-        if not s.self_check:
-            return {"verdict": "ok"}
+        answer = state["answer"].removeprefix(WEB_PREFIX)
+        regen = state.get("regen", 0)
+
+        # 1) free, deterministic check: every [S#] must point at a passage the model was given
+        bad = invalid_citations(answer, state["sources"])
+        if bad:
+            log.warning("answer cites unknown sources: %s", bad)
+            issues = (f"The answer cites {', '.join(bad)}, which do not exist. "
+                      f"Only {', '.join(x['id'] for x in state['sources'])} are available.")
+            if regen < 1:
+                writer(_step("self_check"))
+                return {"verdict": "retry", "issues": issues, "regen": regen + 1}
+
+        # 2) LLM fact-check, only where it pays off: web answers and longer answers
+        worth = state["mode"] == "web" or len(answer) >= s.self_check_min_chars
+        if not s.self_check or not worth:
+            return {"verdict": "ok", "issues": ""}
         writer(_step("self_check"))
         res = chains.safe(
             chains.check,
-            {"sources": state["context"], "answer": state["answer"].removeprefix(WEB_PREFIX)},
+            {"sources": state["context"], "answer": answer},
             GroundingCheck(grounded=True),
         )
         if isinstance(res, dict):
             res = GroundingCheck(**res)
         if res.grounded:
             return {"verdict": "ok", "issues": ""}
-        if state.get("regen", 0) < 1:
-            return {"verdict": "retry", "issues": res.issues, "regen": state.get("regen", 0) + 1}
+        if regen < 1:
+            return {"verdict": "retry", "issues": res.issues, "regen": regen + 1}
         writer({"token": WARN_FOOTER})
         return {"verdict": "flagged", "issues": res.issues, "answer": state["answer"] + WARN_FOOTER}
 
@@ -243,6 +334,39 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
                 writer({"token": tok})
         return {"answer": "".join(parts), "sources": [], "mode": "direct"}
 
+    def studio(state: ChatState, runtime: Runtime[ChatContext], writer: StreamWriter):
+        """Hand the request to the Studio generator (its own model) and save the result as a Studio item."""
+        kind = state["tool"]
+        title = TITLES[kind]
+        ids = set(state.get("doc_ids") or []) or None
+        writer({"step": {"id": "studio", "label": f"Creating your {title.lower()} in Studio"}})
+        content: dict = {}
+        text: list[str] = []
+        sources: list[dict] = []
+        try:
+            if budget:
+                budget.spend("generate")
+            for ev in generator.stream(runtime.context.lib, kind, ids, state.get("focus", "")):
+                if "step" in ev:
+                    writer(ev)
+                text.append(ev.get("token", ""))
+                for key in ("quiz", "flashcards", "mindmap"):
+                    if key in ev:
+                        content[key] = ev[key]
+                if ev.get("done"):
+                    sources = ev.get("sources", [])
+        except UserError as e:
+            msg = f"I couldn't create that {title.lower()}. {e}"
+            writer({"token": msg})
+            return {"answer": msg, "sources": [], "mode": "none"}
+        if any(text):
+            content["markdown"] = "".join(text)
+            content["sources"] = sources
+        msg = f"I've created your **{title}**{_describe(content)}. Open it in Studio to read or study it."
+        writer({"token": msg})
+        writer({"studio_result": {"kind": kind, "content": content}})
+        return {"answer": msg, "sources": [], "mode": "studio"}
+
     def not_found(state: ChatState, writer: StreamWriter):
         tail = ", and a web search didn't turn up anything usable" if web.available else ""
         msg = (f"I couldn't find anything about that in your library{tail}.\n\n"
@@ -253,7 +377,6 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
     def finalize(state: ChatState, writer: StreamWriter):
         answer = state["answer"]
         sources = cited_only(answer, state["sources"]) if state["sources"] else []
-        # keep conversation memory bounded: drop the oldest messages
         keep = max(2, s.max_history_messages * 2)
         old = state["messages"][:-keep] if len(state["messages"]) > keep else []
         writer({"done": True, "sources": sources, "meta": {
@@ -265,21 +388,23 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer):
     # ---------------------------------------------------------------- graph
     g = StateGraph(ChatState, context_schema=ChatContext)
     for name, fn in [("analyze", analyze), ("retrieve", retrieve), ("grade", grade),
-                     ("rewrite", rewrite), ("web_search", web_search), ("generate", generate),
-                     ("self_check", self_check), ("answer_direct", answer_direct),
+                     ("rerank", rerank), ("rewrite", rewrite), ("web_search", web_search),
+                     ("generate", generate), ("self_check", self_check),
+                     ("answer_direct", answer_direct), ("studio", studio),
                      ("not_found", not_found), ("finalize", finalize)]:
         g.add_node(name, fn)
 
     g.add_edge(START, "analyze")
-    g.add_conditional_edges("analyze", lambda st: "answer_direct" if st["route"] == "direct" else "retrieve",
-                            ["answer_direct", "retrieve"])
+    g.add_conditional_edges("analyze", lambda st: {"direct": "answer_direct", "studio": "studio"}.get(st["route"], "retrieve"),
+                            ["answer_direct", "studio", "retrieve"])
     g.add_edge("retrieve", "grade")
-    g.add_conditional_edges("grade", after_grade, ["generate", "rewrite", "web_search", "not_found"])
+    g.add_conditional_edges("grade", after_grade, ["rerank", "rewrite", "web_search", "not_found"])
+    g.add_edge("rerank", "generate")
     g.add_edge("rewrite", "retrieve")
     g.add_conditional_edges("web_search", after_web, ["generate", "not_found"])
     g.add_edge("generate", "self_check")
     g.add_conditional_edges("self_check", after_check, ["generate", "finalize"])
-    for terminal in ("answer_direct", "not_found"):
+    for terminal in ("answer_direct", "studio", "not_found"):
         g.add_edge(terminal, "finalize")
     g.add_edge("finalize", END)
     return g.compile(checkpointer=checkpointer)
@@ -313,6 +438,7 @@ class ChatService:
         answer: list[str] = []
         steps: list[dict] = []
         done: dict = {}
+        studio_result = None
         for ev in self.stream(lib, thread_id, question, doc_ids, style, history):
             if "token" in ev:
                 answer.append(ev["token"])
@@ -320,10 +446,15 @@ class ChatService:
                 answer.clear()
             elif "step" in ev:
                 steps.append(ev["step"])
+            elif "studio_result" in ev:
+                studio_result = ev["studio_result"]
             elif ev.get("done"):
                 done = ev
-        return {"answer": "".join(answer), "sources": done.get("sources", []),
-                "meta": done.get("meta", {}), "steps": steps}
+        result = {"answer": "".join(answer), "sources": done.get("sources", []),
+                  "meta": done.get("meta", {}), "steps": steps}
+        if studio_result:
+            result["studio_result"] = studio_result
+        return result
 
     def forget(self, thread_id: str) -> None:
         """Free a thread's in-memory conversation (the database keeps the messages)."""

@@ -52,7 +52,7 @@ describe("citations", () => {
     const onCite = vi.fn();
     render(<Markdown sources={[SOURCE]} onCite={onCite}>{"A closure keeps scope [S1] and more [S9]."}</Markdown>);
     expect(await screen.findByRole("button", { name: /open source 1/i })).toBeTruthy();
-    expect(screen.getByText(/\[S9\]/)).toBeTruthy(); // unknown ids stay plain text
+    expect(screen.queryByText(/\[S9\]/)).toBeNull(); // citations to unknown sources are hidden
     await userEvent.click(screen.getByRole("button", { name: /open source 1/i }));
     expect(onCite).toHaveBeenCalledWith(SOURCE);
   });
@@ -84,6 +84,8 @@ describe("Studio widgets", () => {
     await userEvent.click(screen.getByRole("button", { name: "b" }));
     expect(screen.getByText("Because b.")).toBeTruthy();
     expect(screen.getByText(/Score: 1 \/ 1/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: /see results/i }));
+    expect(screen.getByText(/answered 1 of 1 correctly/i)).toBeTruthy();
   });
 });
 
@@ -115,6 +117,20 @@ describe("NotebookView", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
+  it("opens a Studio item that a chat request created", async () => {
+    const quiz = { questions: [{ question: "Pick one", options: ["x", "y"], answer_index: 0 }] };
+    streamChat.mockImplementation(async (_nid, _body, h) => {
+      h.onStep({ id: "studio", label: "Creating your quiz in Studio" });
+      h.onOutput({ id: "o9", kind: "quiz", title: "Quiz", created_at: Date.now() / 1000, content: { quiz } });
+      h.onToken("I've created your **Quiz** with 1 questions.");
+      h.onDone([], { mode: "studio", studio: { id: "o9", kind: "quiz", title: "Quiz" } });
+    });
+    view();
+    await userEvent.click(screen.getAllByText("What is a closure?")[0]);
+    await userEvent.click(await screen.findByRole("button", { name: "Open Quiz in Studio" }));
+    expect(await screen.findByText(/Pick one/)).toBeTruthy();
+  });
+
   it("generates a quiz in the Studio and shows it", async () => {
     streamGenerate.mockImplementation(async (_nid, _body, h) => {
       h.onStep({ id: "read", label: "Reading" });
@@ -123,10 +139,11 @@ describe("NotebookView", () => {
         content: { quiz: { questions: [{ question: "Pick one", options: ["x", "y"], answer_index: 0 }] } } });
     });
     view();
-    await userEvent.click(screen.getByRole("button", { name: "Quiz" }));
+    await userEvent.click(screen.getByRole("button", { name: /^quiz/i }));
     expect(streamGenerate).toHaveBeenCalledWith(DATA.notebook.id, { kind: "quiz" }, expect.anything());
+    await userEvent.click(await screen.findByRole("button", { name: "Open Quiz" })); // the new item lands in the list
     expect(await screen.findByText(/Pick one/)).toBeTruthy();
-    await userEvent.click(screen.getAllByRole("button", { name: /studio/i })[0]); // the viewer's back button
+    await userEvent.click(screen.getByRole("button", { name: /back to studio/i }));
     expect(await screen.findByText("Saved outputs")).toBeTruthy();
   });
 
@@ -134,7 +151,7 @@ describe("NotebookView", () => {
     streamGenerate.mockImplementation(async (_n, _b, h) => h.onDone([], {}, null));
     view();
     await userEvent.click(screen.getByRole("checkbox", { name: /ask only about notes.md/i }));
-    await userEvent.click(screen.getByRole("button", { name: "FAQ" }));
+    await userEvent.click(screen.getByRole("button", { name: /^faq/i }));
     expect(streamGenerate).toHaveBeenCalledWith(DATA.notebook.id, { kind: "faq", doc_ids: ["d1"] }, expect.anything());
   });
 

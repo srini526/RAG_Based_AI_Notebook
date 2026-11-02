@@ -173,8 +173,11 @@ def script():
 
 @pytest.fixture
 def settings():
+    # legacy flow (LLM router + grader + always fact-check) so the scripted steps stay predictable;
+    # the new fast paths are covered in test_graph.py
     return Settings(rate_limit_enabled=False, max_docs_per_session=4, ingest_workers=2,
-                    database_url="sqlite://")
+                    database_url="sqlite://", fast_router=False, grade_mode="llm",
+                    self_check_min_chars=0)
 
 
 @pytest.fixture

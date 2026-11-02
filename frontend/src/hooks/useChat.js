@@ -4,7 +4,7 @@ import { clearChat, streamChat } from "../services/api";
 const newBotMessage = () => ({ sender: "bot", message: "", sources: [], steps: [], meta: null });
 
 /** The notebook's single chat. The server saves finished answers; this hook streams new ones. */
-export default function useChat(nid, initialMessages) {
+export default function useChat(nid, initialMessages, { onOutput } = {}) {
   const [messages, setMessages] = useState(initialMessages);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("normal"); // answer style
@@ -34,6 +34,7 @@ export default function useChat(nid, initialMessages) {
           text += token;
           patchLast((m) => ({ ...m, message: text }));
         },
+        onOutput,
         onDone: (sources, meta) => patchLast((m) => ({ ...m, message: text, sources, meta })),
         onError: (err) =>
           patchLast(() => ({

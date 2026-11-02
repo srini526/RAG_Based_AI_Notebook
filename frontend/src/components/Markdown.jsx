@@ -11,7 +11,9 @@ const CHIP =
 /** Markdown where [S1]-style citations become buttons that open the cited passage. */
 export default function Markdown({ children, sources = [], onCite }) {
   const byId = Object.fromEntries(sources.map((s) => [s.id, s]));
-  const text = children.replace(CITE, (match, n) => (byId[`S${n}`] ? `[${n}](cite:S${n})` : match));
+  const text = children.replace(CITE, (match, n) => 
+    byId[`S${n}`] ? `[${n}](cite:S${n})` : sources.length ? "" : match,
+  );
 
   return (
     <div className={PROSE}>

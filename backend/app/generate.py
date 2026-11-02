@@ -68,18 +68,26 @@ class Generator:
         self._chains = chains
 
     # ----------------------------------------------------------------- Studio
-    def stream(self, lib: Library, kind: str, doc_ids: set[str] | None = None) -> Iterator[dict]:
+    def stream(self, lib: Library, kind: str, doc_ids: set[str] | None = None,
+               focus: str = "") -> Iterator[dict]:
+        """`focus` (optional topic, e.g. "chapter 2") narrows the material to the most relevant passages."""
         if kind not in KINDS:
             raise UserError("Unknown tool.")
         lib_docs = dict(lib.docs)
         passages = [p for p in lib.chunks(doc_ids) if p.metadata.get("doc_id") in lib_docs]
         if not passages:
             raise UserError("Add a source first.")
-        passages = sample_evenly(passages, self._s.gen_context_chars)
+        focus = focus.strip()[:160]
+        focused = []
+        if focus:
+            focused = [d for d, _ in lib.search(focus, self._s.studio_focus_k, doc_ids)
+                       if d.metadata.get("doc_id") in lib_docs]
+        passages = focused or sample_evenly(passages, self._s.gen_context_chars)
         sources = build_sources(passages, lib_docs)
+        titles = ", ".join(dict.fromkeys(s["title"] for s in sources))[:600]
         inputs = {
             "sources": format_context(passages, sources),
-            "titles": ", ".join(dict.fromkeys(s["title"] for s in sources))[:600],
+            "titles": f"{titles} (focus on: {focus})" if focused else titles,
         }
 
         yield {"step": {"id": "read", "label": "Reading your sources"}}

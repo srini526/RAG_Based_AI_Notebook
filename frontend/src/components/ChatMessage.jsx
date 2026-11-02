@@ -1,7 +1,8 @@
 import { lazy, Suspense, useState } from "react";
-import { FiBookOpen, FiCheck, FiCopy, FiRefreshCw } from "react-icons/fi";
+import { FiCheck, FiCopy, FiRefreshCw } from "react-icons/fi";
 
-import SourceCard from "./SourceCard";
+import { SourceChip } from "./SourceCard";
+import { TOOL } from "../hooks/Studiotools";
 import StepProgress from "./StepProgress";
 
 const Markdown = lazy(() => import("./Markdown"));
@@ -28,6 +29,30 @@ function CopyButton({ text }) {
   );
 }
 
+/** The Studio item a chat request created, one click away. */
+function StudioCard({ studio, onOpen }) {
+  const tool = TOOL[studio.kind];
+  const Icon = tool?.icon;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open ${studio.title} in Studio`}
+      className="mt-3 flex w-full max-w-sm cursor-pointer items-center gap-3 rounded-2xl border border-[#E6E1D6] bg-[#FFFFFF] p-3 text-left transition hover:border-[#C85A32]/60 hover:shadow-sm dark:border-[#2A2826] dark:bg-[#1C1B19] dark:hover:border-[#D97757]/60"
+    >
+      {Icon && (
+        <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${tool.tint.split(" hover:")[0]}`}>
+          <Icon size={18} />
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium text-[#1C1917] dark:text-[#F5F2EB]">{studio.title}</span>
+        <span className="block text-xs text-[#78716C] dark:text-[#A8A29E]">Saved in Studio · tap to open</span>
+      </span>
+    </button>
+  );
+}
+
 export default function ChatMessage({
   sender,
   message,
@@ -39,11 +64,13 @@ export default function ChatMessage({
   streaming,
   onRegenerate,
   onCite,
+  outputExists,
+  onOpenOutput,
 }) {
   if (sender === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-xl rounded-2xl rounded-br-sm border border-[#E2DAD0] bg-[#EFECE6] px-4 py-3 text-[#1C1917] shadow-2xs transition-colors duration-200 dark:border-[#322F2B] dark:bg-[#24221F] dark:text-[#F5F2EB]">
+        <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-[#EAE4DC]/70 px-4 py-2.5 text-[#1C1917] dark:bg-[#262421] dark:text-[#F5F2EB]">
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{message}</p>
         </div>
       </div>
@@ -53,60 +80,50 @@ export default function ChatMessage({
   const showActions = !streaming && message && !error;
 
   return (
-    <article className="flex gap-3.5 sm:gap-4">
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E6E1D6] bg-[#F3EFEA] text-[#C85A32] shadow-2xs dark:border-[#2A2826] dark:bg-[#1C1B19] dark:text-[#D97757]">
-        <FiBookOpen size={15} />
-      </div>
+    <article className="min-w-0">
+      <StepProgress steps={steps} meta={meta} streaming={streaming} />
 
-      <div className="min-w-0 flex-1">
-        <div className="mb-1.5 flex items-center gap-2">
-          <span className="font-serif-editorial text-sm font-medium text-[#1C1917] dark:text-[#F5F2EB]">
-            Study Assistant
-          </span>
+      {message &&
+        (error ? (
+          <p className="text-[15px] leading-7 text-red-700 dark:text-red-300">{message}</p>
+        ) : (
+          <Suspense fallback={<p className="whitespace-pre-wrap text-[15px] leading-7">{message}</p>}>
+            <Markdown sources={sources} onCite={onCite}>
+              {message}
+            </Markdown>
+          </Suspense>
+        ))}
+
+      {meta?.studio && outputExists && !streaming && (
+        <StudioCard studio={meta.studio} onOpen={() => onOpenOutput?.(meta.studio.id)} />
+      )}
+
+      {stopped && !streaming && <p className="mt-2 text-[11px] text-[#78716C] dark:text-[#A8A29E]">Stopped.</p>}
+
+      {sources?.length > 0 && !streaming && (
+        <div className="mt-4">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
+            Referenced sources ({sources.length})
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {sources.map((source) => (
+              <SourceChip key={source.id} source={source} onOpen={onCite} />
+            ))}
+          </div>
         </div>
+      )}
 
-        <StepProgress steps={steps} meta={meta} streaming={streaming} />
-
-        {message &&
-          (error ? (
-            <p className="text-[15px] leading-7 text-red-700 dark:text-red-300">{message}</p>
-          ) : (
-            <Suspense fallback={<p className="whitespace-pre-wrap text-[15px] leading-7">{message}</p>}>
-              <Markdown sources={sources} onCite={onCite}>
-                {message}
-              </Markdown>
-            </Suspense>
-          ))}
-
-        {stopped && !streaming && (
-          <p className="mt-2 text-[11px] text-[#78716C] dark:text-[#A8A29E]">Stopped.</p>
-        )}
-
-        {sources?.length > 0 && (
-          <div className="mt-6 border-t border-[#E6E1D6] pt-4 dark:border-[#2A2826]">
-            <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
-              <span>Referenced Sources ({sources.length})</span>
-            </div>
-            <div className="grid gap-2.5 sm:grid-cols-2">
-              {sources.map((source) => (
-                <SourceCard key={source.id} source={source} onOpen={onCite} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {showActions && (
-          <div className="mt-3 -ml-2 flex items-center gap-1">
-            {message && <CopyButton text={message} />}
-            {onRegenerate && (
-              <button type="button" onClick={onRegenerate} className={ACTION}>
-                <FiRefreshCw size={12} />
-                Regenerate
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      {showActions && (
+        <div className="mt-3 -ml-2 flex items-center gap-1">
+          {message && <CopyButton text={message} />}
+          {onRegenerate && (
+            <button type="button" onClick={onRegenerate} className={ACTION}>
+              <FiRefreshCw size={12} />
+              Regenerate
+            </button>
+          )}
+        </div>
+      )}
     </article>
   );
 }

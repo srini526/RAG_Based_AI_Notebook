@@ -1,137 +1,170 @@
-import {
-  FiBookOpen,
-  FiCheckSquare,
-  FiClock,
-  FiFileText,
-  FiHelpCircle,
-  FiLayers,
-  FiShare2,
-  FiTrash2,
-} from "react-icons/fi";
+import { FiAlertCircle, FiChevronsRight, FiFolder, FiLoader, FiTrash2, FiX } from "react-icons/fi";
 
 import OutputViewer from "./OutputViewer";
+import Panel from "./Panel";
+import { ago, TOOL, TOOLS } from "../hooks/Studiotools.js";
+import { ICON_BTN } from "../hooks/Ui.js";
 
-const TOOLS = [
-  { id: "briefing", label: "Briefing doc", icon: FiFileText },
-  { id: "study_guide", label: "Study guide", icon: FiBookOpen },
-  { id: "faq", label: "FAQ", icon: FiHelpCircle },
-  { id: "timeline", label: "Timeline", icon: FiClock },
-  { id: "mindmap", label: "Mind map", icon: FiShare2 },
-  { id: "flashcards", label: "Flashcards", icon: FiLayers },
-  { id: "quiz", label: "Quiz", icon: FiCheckSquare },
-];
-const LABEL = Object.fromEntries(TOOLS.map((t) => [t.id, t.label]));
-const ICON = Object.fromEntries(TOOLS.map((t) => [t.id, t.icon]));
+function Tile({ tool, disabled, onClick }) {
+  const Icon = tool.icon;
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`group flex min-h-[88px] cursor-pointer flex-col justify-between rounded-2xl p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-45 ${tool.tint}`}
+    >
+      <Icon size={18} />
+      <span>
+        <span className="block text-[13px] font-medium leading-tight">{tool.label}</span>
+        <span className="mt-0.5 block text-[11px] leading-tight opacity-70">{tool.description}</span>
+      </span>
+    </button>
+  );
+}
 
-const ago = (ts) => {
-  const minutes = Math.round((Date.now() / 1000 - ts) / 60);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  if (minutes < 1440) return `${Math.round(minutes / 60)} h ago`;
-  return `${Math.round(minutes / 1440)} d ago`;
-};
+function ItemRow({ output, onOpen, onDelete }) {
+  const tool = TOOL[output.kind];
+  const Icon = tool?.icon || FiFolder;
+  const sourceCount = output.content?.sources?.length || 0;
+  return (
+    <li className="group flex items-center gap-1 rounded-xl transition hover:bg-[#F3EFEA] dark:hover:bg-[#22201E]">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open ${output.title}`}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-2 py-2 text-left"
+      >
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${(tool?.tint || "").split(" hover:")[0]}`}>
+          <Icon size={16} />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-medium text-[#1C1917] dark:text-[#F5F2EB]">{output.title}</span>
+          <span className="block truncate text-[11px] text-[#78716C] dark:text-[#A8A29E]">
+            {sourceCount > 0 ? `${sourceCount} ${sourceCount === 1 ? "source" : "sources"} · ` : ""}
+            {ago(output.created_at)}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label={`Delete ${output.title}`}
+        className={`${ICON_BTN} mr-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 hover:!bg-red-500/10 hover:!text-red-600`}
+      >
+        <FiTrash2 size={14} />
+      </button>
+    </li>
+  );
+}
 
-export default function StudioPanel({ studio, hasReady, scopeCount, onCite }) {
+export default function StudioPanel({ studio, hasReady, scopeCount, onCite, wide, onWide, onCollapse }) {
   const { draft, active, outputs } = studio;
+  const lastStep = draft?.steps?.[draft.steps.length - 1]?.label;
 
-  if (draft) {
-    const content = { markdown: draft.text, ...(draft.data || {}) };
+  // A finished output, or the one being generated while the reader watches it.
+  if (active || (draft && studio.watching)) {
+    const shown = active
+      ? { title: active.title, kind: active.kind, content: active.content }
+      : { title: TOOL[draft.kind]?.label || "Studio", kind: draft.kind, content: { markdown: draft.text, ...(draft.data || {}) } };
+    const goBack = () => {
+      onWide?.(false);
+      studio.close();
+    };
     return (
       <OutputViewer
-        title={LABEL[draft.kind]}
-        kind={draft.kind}
-        content={content}
-        busy={!draft.error}
-        error={draft.error}
-        onBack={studio.back}
+        {...shown}
+        busy={!active && !draft?.error}
+        error={!active ? draft?.error : undefined}
+        step={lastStep}
+        wide={wide}
+        onWide={onWide}
+        onBack={goBack}
         onCancel={studio.cancel}
-        onCite={onCite}
-      />
-    );
-  }
-  if (active) {
-    return (
-      <OutputViewer
-        title={active.title}
-        kind={active.kind}
-        content={active.content}
-        onBack={studio.back}
-        onDelete={() => studio.remove(active.id)}
+        onDelete={active ? () => studio.remove(active.id) : undefined}
         onCite={onCite}
       />
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4 p-4 sm:p-5 xl:p-3.5">
-      <div>
-        <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
-          Studio
-        </h2>
-        <p className="mt-1 text-xs text-[#78716C] dark:text-[#A8A29E]">
-          {hasReady
-            ? scopeCount > 0
-              ? `Create from the ${scopeCount} selected ${scopeCount === 1 ? "source" : "sources"}.`
-              : "Create from all your sources."
-            : "Add a source to unlock these tools."}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {TOOLS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            disabled={!hasReady}
-            onClick={() => studio.generate(id)}
-            className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] px-3 py-2.5 text-left text-xs font-medium text-[#292524] shadow-2xs transition enabled:hover:border-[#C85A32]/60 enabled:hover:text-[#C85A32] disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#2A2826] dark:bg-[#22201E] dark:text-[#E7E5E4] dark:enabled:hover:border-[#D97757]/60 dark:enabled:hover:text-[#D97757]"
-          >
-            <Icon size={14} className="shrink-0" />
-            {label}
+    <Panel
+      title="Studio"
+      actions={
+        onCollapse && (
+          <button type="button" onClick={onCollapse} aria-label="Collapse panel" title="Collapse" className={`${ICON_BTN} hidden xl:inline-flex`}>
+            <FiChevronsRight size={17} />
           </button>
-        ))}
-      </div>
-
-      {outputs.length > 0 && (
-        <div className="space-y-1.5">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
-            Saved outputs
-          </h3>
-          <ul className="space-y-1.5">
-            {outputs.map((o) => {
-              const Icon = ICON[o.kind] || FiFileText;
-              return (
-                <li
-                  key={o.id}
-                  className="group flex items-center gap-2 rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] pr-1.5 dark:border-[#2A2826] dark:bg-[#22201E]"
-                >
-                  <button
-                    type="button"
-                    onClick={() => studio.open(o.id)}
-                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 py-2.5 text-left"
-                  >
-                    <Icon size={13} className="shrink-0 text-[#78716C] dark:text-[#A8A29E]" />
-                    <span className="min-w-0">
-                      <span className="block truncate text-xs font-medium text-[#1C1917] dark:text-[#F5F2EB]">
-                        {o.title}
-                      </span>
-                      <span className="block text-[11px] text-[#78716C] dark:text-[#A8A29E]">{ago(o.created_at)}</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => studio.remove(o.id)}
-                    aria-label={`Delete ${o.title}`}
-                    className="cursor-pointer rounded-lg p-1.5 text-[#A8A29E] opacity-80 transition hover:bg-red-500/10 hover:text-red-600 group-hover:opacity-100"
-                  >
-                    <FiTrash2 size={13} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+        )
+      }
+    >
+      <div className="space-y-5 px-3 pb-5">
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            {TOOLS.map((tool) => (
+              <Tile key={tool.id} tool={tool} disabled={!hasReady || studio.generating} onClick={() => studio.generate(tool.id)} />
+            ))}
+          </div>
+          <p className="mt-2.5 px-1 text-[11px] leading-relaxed text-[#78716C] dark:text-[#A8A29E]">
+            {!hasReady
+              ? "Add and process a source to unlock these tools."
+              : scopeCount > 0
+                ? `Creating from ${scopeCount} selected ${scopeCount === 1 ? "source" : "sources"}.`
+                : "Creating from all your sources."}
+          </p>
         </div>
-      )}
-    </div>
+
+        <div>
+          <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">Saved outputs</h3>
+
+          <ul className="space-y-0.5">
+            {draft && (
+              <li className="flex items-center gap-1 rounded-xl bg-[#F3EFEA]/70 dark:bg-[#22201E]">
+                <button
+                  type="button"
+                  onClick={() => studio.watch(true)}
+                  aria-label={`Open ${TOOL[draft.kind]?.label} being created`}
+                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-2 py-2 text-left"
+                >
+                  <span
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+                      draft.error ? "bg-red-50 text-red-600 dark:bg-red-400/10" : "bg-[#C85A32]/10 text-[#C85A32] dark:bg-[#D97757]/12 dark:text-[#D97757]"
+                    }`}
+                  >
+                    {draft.error ? <FiAlertCircle size={16} /> : <FiLoader size={16} className="animate-spin" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-medium text-[#1C1917] dark:text-[#F5F2EB]">
+                      {draft.error ? `${TOOL[draft.kind]?.label} failed` : `Creating ${TOOL[draft.kind]?.label.toLowerCase()}…`}
+                    </span>
+                    <span className="block truncate text-[11px] text-[#78716C] dark:text-[#A8A29E]">
+                      {draft.error || lastStep || "Reading your sources"}
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={draft.error ? studio.dismiss : studio.cancel}
+                  aria-label={draft.error ? "Dismiss" : "Cancel generation"}
+                  className={`${ICON_BTN} mr-1`}
+                >
+                  <FiX size={15} />
+                </button>
+              </li>
+            )}
+            {outputs.map((o) => (
+              <ItemRow key={o.id} output={o} onOpen={() => studio.open(o.id)} onDelete={() => studio.remove(o.id)} />
+            ))}
+          </ul>
+
+          {outputs.length === 0 && !draft && (
+            <div className="rounded-2xl border border-dashed border-[#D6CFC2] px-4 py-6 text-center dark:border-[#35322F]">
+              <FiFolder className="mx-auto mb-2 text-[#A8A29E]" size={18} />
+              <p className="text-xs text-[#78716C] dark:text-[#A8A29E]">Studio outputs will be saved here. Pick a tool above to create your first one.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </Panel>
   );
 }

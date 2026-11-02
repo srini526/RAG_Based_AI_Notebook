@@ -42,7 +42,7 @@ def _sse_response(events) -> Response:
         try:
             for event in events:
                 yield encode(event)
-        except UserError as e:
+        except (UserError, ApiError) as e:  # e.g. the daily limit reached while a chat turn was running
             yield encode({"error": str(e)})
         except Exception:
             log.exception("stream failed")
@@ -232,13 +232,32 @@ def make_blueprint(svc, limiter) -> Blueprint:
         except Exception:
             log.exception("could not save chat messages")
 
+    def save_studio_result(nid: str, result: dict) -> dict | None:
+        """A Studio tool asked for in chat becomes a normal saved Studio item."""
+        try:
+            return svc.repo.add_output(nid, result["kind"], TITLES[result["kind"]], result["content"])
+        except Exception:
+            log.exception("could not save Studio output made from chat")
+            return None
+
+    def studio_ref(output: dict) -> dict:
+        return {"id": output["id"], "kind": output["kind"], "title": output["title"]}
+
     def saving_chat(events, nid: str, question: str):
         answer = ""
+        output = None
         for ev in events:
+            if "studio_result" in ev:
+                output = save_studio_result(nid, ev["studio_result"])
+                if output:
+                    yield {"studio_output": output}  # the client adds it to the Studio list
+                continue
             if ev.get("reset"):
                 answer = ""
             answer += ev.get("token", "")
             if ev.get("done"):
+                if output:
+                    ev = {**ev, "meta": {**ev.get("meta", {}), "studio": studio_ref(output)}}
                 save_turn(nid, question, answer, ev)
             yield ev
 
@@ -247,6 +266,11 @@ def make_blueprint(svc, limiter) -> Blueprint:
     def chat():
         args = prepare()
         result = svc.chat.invoke(*args)
+        if "studio_result" in result:
+            output = save_studio_result(args[1], result.pop("studio_result"))
+            if output:
+                result["meta"] = {**result.get("meta", {}), "studio": studio_ref(output)}
+                result["output"] = output
         save_turn(args[1], args[2], result["answer"], result)
         return jsonify(result)
 

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { FiCheck, FiCopy, FiKey, FiLoader, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiBookOpen, FiCheck, FiCopy, FiKey, FiLoader, FiPlus, FiTrash2 } from "react-icons/fi";
 
 import { createNotebook, deleteNotebook, getOwnerKey, listNotebooks, setOwnerKey } from "../services/api";
+
+const TINTS = [
+  "bg-orange-50 text-orange-700 dark:bg-orange-400/10 dark:text-orange-300",
+  "bg-sky-50 text-sky-700 dark:bg-sky-400/10 dark:text-sky-300",
+  "bg-purple-50 text-purple-700 dark:bg-purple-400/10 dark:text-purple-300",
+  "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300",
+];
 
 const ago = (ts) => {
   const days = Math.floor((Date.now() / 1000 - ts) / 86400);
@@ -128,59 +135,63 @@ export default function Home({ onOpen }) {
   };
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-5 sm:px-5 sm:py-8 md:px-8">
-      <div className="mb-6 flex items-start justify-between gap-3 sm:items-end sm:gap-4">
-        <div>
-          <h2 className="font-serif-editorial text-xl font-medium text-[#1C1917] sm:text-2xl dark:text-[#F5F2EB]">Notebooks</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[#78716C] dark:text-[#A8A29E]">
-            Add sources, ask questions with citations, and create study material. Everything is saved.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={create}
-          disabled={creating}
-          className="inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-xl bg-[#C85A32] px-3 py-2 text-xs font-medium text-white transition hover:bg-[#B24C28] disabled:opacity-60 sm:gap-2 sm:px-4 sm:py-2.5 sm:text-sm dark:bg-[#D97757] dark:text-[#141312] dark:hover:bg-[#E28769]"
-        >
-          {creating ? <FiLoader className="animate-spin" size={15} /> : <FiPlus size={16} />}
-          New notebook
-        </button>
-      </div>
+    <main className="mx-auto w-full max-w-6xl flex-1 overflow-y-auto px-4 pb-10 pt-4 sm:px-8 sm:pt-8">
+      <h2 className="font-serif-editorial text-3xl font-medium tracking-tight text-[#1C1917] sm:text-4xl dark:text-[#F5F2EB]">
+        Your notebooks
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#78716C] dark:text-[#A8A29E]">
+        Add sources, ask questions with citations, and create study material. Everything is saved.
+      </p>
 
       {error && (
-        <p className="mb-4 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+        <p className="mt-5 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-300">
           {error}
         </p>
       )}
 
       {notebooks === null ? (
-        <p className="flex items-center gap-2 text-sm text-[#78716C]">
+        <p className="mt-8 flex items-center gap-2 text-sm text-[#78716C]">
           <FiLoader className="animate-spin" size={14} /> Loading…
         </p>
-      ) : notebooks.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[#D6CFC2] px-6 py-12 text-center text-sm text-[#78716C] dark:border-[#35322F] dark:text-[#A8A29E]">
-          No notebooks yet. Create one to get started.
-        </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {notebooks.map((nb) => (
+        <ul className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <li>
+            <button
+              type="button"
+              onClick={create}
+              disabled={creating}
+              className="flex h-44 w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-[#D6CFC2] text-[#57534E] transition hover:border-[#C85A32] hover:bg-[#C85A32]/5 hover:text-[#C85A32] disabled:opacity-60 dark:border-[#35322F] dark:text-[#A8A29E] dark:hover:border-[#D97757] dark:hover:text-[#D97757]"
+            >
+              <span className="flex size-12 items-center justify-center rounded-full bg-[#C85A32] text-white dark:bg-[#D97757] dark:text-[#141312]">
+                {creating ? <FiLoader className="animate-spin" size={20} /> : <FiPlus size={22} />}
+              </span>
+              <span className="text-sm font-medium">New notebook</span>
+            </button>
+          </li>
+
+          {notebooks.map((nb, i) => (
             <li
               key={nb.id}
-              className="group relative rounded-2xl border border-[#E6E1D6] bg-[#FFFFFF] shadow-2xs transition hover:border-[#C85A32]/50 dark:border-[#2A2826] dark:bg-[#1C1B19] dark:hover:border-[#D97757]/50"
+              className="group relative h-44 rounded-3xl border border-[#E6E1D6] bg-[#FFFFFF] transition hover:-translate-y-0.5 hover:border-[#C85A32]/50 hover:shadow-md dark:border-[#2A2826] dark:bg-[#1C1B19] dark:hover:border-[#D97757]/50"
             >
-              <button type="button" onClick={() => onOpen(nb.id)} className="block w-full cursor-pointer p-4 text-left">
-                <span className="block truncate font-serif-editorial text-base font-medium text-[#1C1917] dark:text-[#F5F2EB]">
-                  {nb.title}
+              <button type="button" onClick={() => onOpen(nb.id)} className="flex h-full w-full cursor-pointer flex-col justify-between p-5 text-left">
+                <span className={`flex size-10 items-center justify-center rounded-xl ${TINTS[i % TINTS.length]}`}>
+                  <FiBookOpen size={18} />
                 </span>
-                <span className="mt-1 block text-xs text-[#78716C] dark:text-[#A8A29E]">
-                  {nb.sources} {nb.sources === 1 ? "source" : "sources"} · {ago(nb.updated_at)}
+                <span>
+                  <span className="line-clamp-2 block font-serif-editorial text-lg font-medium leading-snug text-[#1C1917] dark:text-[#F5F2EB]">
+                    {nb.title}
+                  </span>
+                  <span className="mt-1 block text-xs text-[#78716C] dark:text-[#A8A29E]">
+                    {ago(nb.updated_at)} · {nb.sources} {nb.sources === 1 ? "source" : "sources"}
+                  </span>
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => remove(nb)}
                 aria-label={`Delete ${nb.title}`}
-                className="absolute right-2 top-2 cursor-pointer rounded-lg p-2 text-[#A8A29E] opacity-100 transition hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
+                className="absolute right-3 top-3 cursor-pointer rounded-full p-2 text-[#A8A29E] transition hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 dark:hover:text-red-400"
               >
                 <FiTrash2 size={14} />
               </button>
@@ -188,6 +199,11 @@ export default function Home({ onOpen }) {
           ))}
         </ul>
       )}
+
+      {notebooks?.length === 0 && (
+        <p className="mt-6 text-sm text-[#78716C] dark:text-[#A8A29E]">No notebooks yet. Create your first one to get started.</p>
+      )}
+
       <DeviceKey />
     </main>
   );

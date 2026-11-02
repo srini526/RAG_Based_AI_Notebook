@@ -95,3 +95,24 @@ export default function SourceCard({ source, onOpen }) {
     </div>
   );
 }
+
+/** Compact, clickable reference used under chat answers. */
+export function SourceChip({ source, onOpen }) {
+  const { icon: Icon } = KIND[source.kind] || KIND.text;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen?.(source)}
+      aria-label={`Show passage from ${source.title}`}
+      title={source.locator ? `${source.title} · ${source.locator}` : source.title}
+      className="inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-full border border-[#E6E1D6] bg-[#FFFFFF] py-1 pl-1.5 pr-3 text-xs text-[#292524] transition hover:border-[#C85A32]/60 dark:border-[#2A2826] dark:bg-[#1C1B19] dark:text-[#E7E5E4]"
+    >
+      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#C85A32]/12 font-mono-code text-[10px] font-semibold text-[#C85A32] dark:bg-[#D97757]/15 dark:text-[#D97757]">
+        {String(source.id).replace(/^S/, "")}
+      </span>
+      <Icon size={12} className="shrink-0 text-[#78716C]" />
+      <span className="truncate">{source.title}</span>
+      {source.locator && <span className="shrink-0 text-[#78716C] dark:text-[#A8A29E]">· {source.locator}</span>}
+    </button>
+  );
+}

@@ -39,10 +39,16 @@ def build_sources(documents: list[Document], lib_docs: dict) -> list[dict]:
 
 
 def cited_only(answer: str, sources: list[dict]) -> list[dict]:
-    """Keep only sources the model actually cited; fall back to all."""
+    """Keep only the sources the answer actually cites (none if it cites nothing)."""
     cited = {f"S{n}" for n in _CITE.findall(answer)}
-    picked = [s for s in sources if s["id"] in cited]
-    return picked or sources
+    return [s for s in sources if s["id"] in cited]
+
+
+def invalid_citations(answer: str, sources: list[dict]) -> list[str]:
+    """Citation ids in the answer that don't exist among the sources given to the model."""
+    valid = {s["id"] for s in sources}
+    bad = dict.fromkeys(f"S{n}" for n in _CITE.findall(answer))
+    return [c for c in bad if c not in valid]
 
 
 def format_context(docs: list[Document], sources: list[dict]) -> str:

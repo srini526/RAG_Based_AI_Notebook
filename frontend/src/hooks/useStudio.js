@@ -6,7 +6,14 @@ export default function useStudio(nid, initialOutputs) {
   const [outputs, setOutputs] = useState(initialOutputs);
   const [activeId, setActiveId] = useState(null);
   const [draft, setDraft] = useState(null); // { kind, text, steps, data, error }
+  const [watching, setWatching] = useState(false); // is the reader looking at the draft being generated?
   const abortRef = useRef(null);
+  const watchingRef = useRef(false);
+
+  const watch = (on) => {
+    watchingRef.current = on;
+    setWatching(on);
+  };
 
   const patchDraft = (update) => setDraft((d) => (d ? update(d) : d));
   const generating = draft !== null && !draft.error;
@@ -14,6 +21,7 @@ export default function useStudio(nid, initialOutputs) {
   const generate = async (kind, docIds = []) => {
     if (generating) return;
     setActiveId(null);
+    watch(false);
     setDraft({ kind, text: "", steps: [], data: null, error: "" });
     const controller = new AbortController();
     abortRef.current = controller;
@@ -25,7 +33,8 @@ export default function useStudio(nid, initialOutputs) {
       onDone: (_sources, _meta, output) => {
         if (output) {
           setOutputs((o) => [output, ...o]);
-          setActiveId(output.id);
+          // Like NotebookLM: the new item lands in the list; it opens only if you were watching it.
+          setActiveId((current) => (current === null && watchingRef.current ? output.id : current));
         }
         setDraft(null);
       },
@@ -36,6 +45,7 @@ export default function useStudio(nid, initialOutputs) {
 
   const cancel = () => {
     abortRef.current?.abort();
+    watch(false);
     setDraft(null);
   };
 
@@ -53,10 +63,14 @@ export default function useStudio(nid, initialOutputs) {
     outputs,
     active: outputs.find((o) => o.id === activeId) || null,
     open: setActiveId,
-    back: () => {
+    close: () => {
       setActiveId(null);
-      setDraft(null);
+      watch(false);
     },
+    dismiss: () => setDraft(null), // clear a failed generation
+    addOutput: (output) => setOutputs((o) => [output, ...o.filter((x) => x.id !== output.id)]), // made from chat
+    watching,
+    watch,
     draft,
     generating,
     generate,

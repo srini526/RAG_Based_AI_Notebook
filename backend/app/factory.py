@@ -24,6 +24,7 @@ from .routes import make_blueprint
 from .store import NotebookStore
 from .transcribe import Transcriber
 from .websearch import WebSearch
+from .reranker import CloudflareReranker
 
 log = logging.getLogger("app")
 
@@ -65,6 +66,7 @@ def create_app(settings: Settings | None = None, *, embeddings=None, chains=None
                       headers_enabled=True)
 
     embeddings = embeddings or BGEEmbeddings(EmbeddingClient(settings))
+    reranker = CloudflareReranker(settings)
     chains = chains or Chains(settings)
     web = web or WebSearch(settings)
     transcriber = transcriber or Transcriber(settings)
@@ -76,17 +78,20 @@ def create_app(settings: Settings | None = None, *, embeddings=None, chains=None
     # Short-term conversation memory lives in a LangGraph checkpointer (in memory); the saved
     # messages in the database re-seed it when a notebook is reopened.
     checkpointer = InMemorySaver()
-    chat = ChatService(build_chat_graph(settings, chains, web, checkpointer), checkpointer, settings)
     generator = Generator(settings, chains)
+    budget = DailyBudget({"chat": settings.daily_chat_limit,
+                          "generate": settings.daily_generate_limit,
+                          "ingest": settings.daily_ingest_limit})
+    # Chat hands "make me a quiz / mind map / ..." to the Studio generator (the Studio model).
+    chat = ChatService(build_chat_graph(settings, chains, web, checkpointer, generator, budget, reranker=reranker,),
+                       checkpointer, settings)
     svc = SimpleNamespace(
         settings=settings,
         web=web,
         chat=chat,
         generate=generator,
         repo=repo,
-        budget=DailyBudget({"chat": settings.daily_chat_limit,
-                            "generate": settings.daily_generate_limit,
-                            "ingest": settings.daily_ingest_limit}),
+        budget=budget,
         store=NotebookStore(embeddings, repo, settings.idle_unload_minutes, settings.max_loaded_notebooks,
                             on_evict=chat.forget),
         ingest=IngestManager(settings, embeddings, transcriber, guide=generator.make_guide),

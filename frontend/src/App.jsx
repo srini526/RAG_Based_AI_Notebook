@@ -28,7 +28,7 @@ function NotebookPage({ nid, theme, onHome }) {
   if (state.status === "ready") return <NotebookView key={nid} nid={nid} data={state.data} theme={theme} onHome={onHome} />;
   if (state.status === "loading") {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[#FAF8F5] text-[#78716C] dark:bg-[#141312]">
+      <div className="flex h-dvh items-center justify-center bg-[#F3EFEA] text-[#78716C] dark:bg-[#0F0E0D]">
         <FiLoader className="animate-spin" size={20} />
       </div>
     );
@@ -51,7 +51,7 @@ export default function App() {
 
   if (notebookId) return <NotebookPage nid={notebookId} theme={theme} onHome={() => open(null)} />;
   return (
-    <div className="flex h-dvh flex-col bg-[#FAF8F5] text-[#1C1917] transition-colors duration-200 dark:bg-[#141312] dark:text-[#F5F2EB]">
+    <div className="flex h-dvh flex-col bg-[#F3EFEA] text-[#1C1917] transition-colors duration-200 dark:bg-[#0F0E0D] dark:text-[#F5F2EB]">
       <Header theme={theme} />
       <Home onOpen={open} />
       <Analytics />

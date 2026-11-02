@@ -11,6 +11,22 @@ def _int(name: str, default: int) -> int:
         return default
 
 
+def _float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, default))
+    except ValueError:
+        return default
+
+
+def _grade_mode() -> str:
+    mode = os.getenv("GRADE_MODE", "").strip().lower()
+    if mode in {"score", "llm", "off"}:
+        return mode
+    if os.getenv("GRADE_DOCS", "").strip().lower() in {"0", "false", "no", "off"}:  # old setting
+        return "off"
+    return "score"
+
+
 def _bool(name: str, default: bool) -> bool:
     v = os.getenv(name)
     return default if v is None else v.strip().lower() in {"1", "true", "yes", "on"}
@@ -23,7 +39,8 @@ class Settings:
     cf_account_id: str = ""
     cf_api_token: str = ""
     studio_llm_model: str = "@cf/openai/gpt-oss-120b"
-    llm_model: str = "openai/gpt-oss-120b"
+    llm_model: str = "openai/gpt-oss-120b"          # answers (big model)
+    fast_llm_model: str = "openai/gpt-oss-20b"      # router, rewrite, checker (small, fast model)
     whisper_model: str = "whisper-large-v3"
     whisper_language: str = ""  # empty = auto-detect
     embedding_model: str = "@cf/baai/bge-m3"
@@ -31,11 +48,17 @@ class Settings:
     # --- retrieval ---
     top_k: int = 6
     chunk_chars: int = 1000
+    reranker_enabled: bool = True
+    reranker_candidate_k: int = 20
 
     # --- agentic RAG (LangGraph) ---
     max_rewrites: int = 2          # query rewrites before falling back
-    grade_docs: bool = True        # LLM relevance grading of retrieved passages
+    grade_mode: str = "score"      # score = similarity threshold (no LLM call) | llm | off
+    min_score: float = 0.35        # passages scoring below this count as "not relevant" (grade_mode=score)
+    studio_focus_k: int = 14       # passages used when a chat request names a topic ("quiz me on X")
+    fast_router: bool = True       # skip the router LLM call on a first message / small talk
     self_check: bool = True        # verify the answer against its sources
+    self_check_min_chars: int = 500  # skip the LLM fact-check for short library answers (0 = always check)
     web_fallback: bool = True      # Tavily web search when the library has nothing
     tavily_api_key: str = ""
     max_web_results: int = 4
@@ -95,8 +118,13 @@ class Settings:
             whisper_language=os.getenv("WHISPER_LANGUAGE", ""),
             top_k=_int("TOP_K", cls.top_k),
             max_rewrites=_int("MAX_REWRITES", cls.max_rewrites),
-            grade_docs=_bool("GRADE_DOCS", True),
+            fast_llm_model=os.getenv("FAST_LLM_MODEL", cls.fast_llm_model),
+            grade_mode=_grade_mode(),
+            min_score=_float("MIN_SCORE", cls.min_score),
+            studio_focus_k=_int("STUDIO_FOCUS_K", cls.studio_focus_k),
+            fast_router=_bool("FAST_ROUTER", True),
             self_check=_bool("SELF_CHECK", True),
+            self_check_min_chars=_int("SELF_CHECK_MIN_CHARS", cls.self_check_min_chars),
             web_fallback=_bool("WEB_FALLBACK", True),
             tavily_api_key=os.getenv("TAVILY_API_KEY", ""),
             max_web_results=_int("MAX_WEB_RESULTS", cls.max_web_results),
@@ -126,4 +154,6 @@ class Settings:
             youtube_proxy_url=os.getenv("YOUTUBE_PROXY_URL", ""),
             ytdlp_cookies_file=os.getenv("YTDLP_COOKIES_FILE", ""),
             studio_llm_model=os.getenv("STUDIO_LLM_MODEL",cls.studio_llm_model,),
+            reranker_enabled=_bool("RERANKER_ENABLED", cls.reranker_enabled),
+            reranker_candidate_k=_int("RERANKER_CANDIDATE_K", cls.reranker_candidate_k),
         )

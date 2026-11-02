@@ -14,9 +14,13 @@ from .errors import UserError
 log = logging.getLogger(__name__)
 
 
+STUDIO_TOOLS = ("briefing", "study_guide", "faq", "timeline", "mindmap", "flashcards", "quiz")
+
+
 class Analysis(BaseModel):
-    route: Literal["library", "direct"] = Field(description="Where to answer from")
-    query: str = Field(default="", description="Standalone search query")
+    route: Literal["library", "direct", "studio"] = Field(description="Where to answer from")
+    query: str = Field(default="", description="Standalone search query (or the topic for a studio tool)")
+    tool: str = Field(default="", description="Studio tool to create when route is studio")
 
 
 class Grades(BaseModel):
@@ -81,6 +85,7 @@ class Chains:
         settings,
         llm=None,
         studio_llm=None,
+        fast_llm=None,
         **overrides: Runnable,
     ) -> None:
         self._s = settings
@@ -100,6 +105,19 @@ class Chains:
             )
 
         self.llm = llm
+
+        # Small, fast model for the quick structured jobs (route, grade, rewrite, fact-check).
+        if fast_llm is None and settings.groq_api_key and settings.fast_llm_model:
+            from langchain_groq import ChatGroq
+
+            fast_llm = ChatGroq(
+                model=settings.fast_llm_model,
+                temperature=0,
+                api_key=settings.groq_api_key,
+                max_retries=3,
+                timeout=30,
+            )
+        self.fast_llm = fast_llm or self.llm
 
         # --------------------------------------------------
         # STUDIO MODEL: Cloudflare Workers AI
@@ -142,19 +160,19 @@ class Chains:
         self.analyze = build(
             "analyze",
             lambda: prompts.ANALYZE
-            | self.llm.with_structured_output(Analysis),
+            | self.fast_llm.with_structured_output(Analysis),
         )
 
         self.grade = build(
             "grade",
             lambda: prompts.GRADE
-            | self.llm.with_structured_output(Grades),
+            | self.fast_llm.with_structured_output(Grades),
         )
 
         self.rewrite = build(
             "rewrite",
             lambda: prompts.REWRITE
-            | self.llm
+            | self.fast_llm
             | StrOutputParser(),
         )
 
@@ -168,7 +186,7 @@ class Chains:
         self.check = build(
             "check",
             lambda: prompts.CHECK
-            | self.llm.with_structured_output(GroundingCheck),
+            | self.fast_llm.with_structured_output(GroundingCheck),
         )
 
         self.chat = build(
@@ -253,4 +271,3 @@ class Chains:
                 exc_info=True,
             )
             return default
-

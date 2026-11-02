@@ -1,127 +1,126 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   FiAlertCircle,
+  FiChevronsLeft,
   FiFileText,
   FiFilm,
   FiGlobe,
-  FiLink,
   FiLoader,
   FiMonitor,
   FiMusic,
+  FiPlus,
   FiTrash2,
-  FiUploadCloud,
   FiYoutube,
 } from "react-icons/fi";
 
-const KIND_ICON = {
-  pdf: FiFileText,
-  docx: FiFileText,
-  text: FiFileText,
-  pptx: FiMonitor,
-  audio: FiMusic,
-  video: FiFilm,
-  youtube: FiYoutube,
-  web: FiGlobe,
+import AddSourcesDialog from "./AddSourcesDialog";
+import Panel from "./Panel";
+import { ICON_BTN, PILL_BTN } from "../hooks/Ui.js";
+
+const KIND = {
+  pdf: { icon: FiFileText, tint: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300" },
+  docx: { icon: FiFileText, tint: "bg-blue-50 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300" },
+  text: { icon: FiFileText, tint: "bg-stone-100 text-stone-600 dark:bg-stone-400/10 dark:text-stone-300" },
+  pptx: { icon: FiMonitor, tint: "bg-orange-50 text-orange-700 dark:bg-orange-400/10 dark:text-orange-300" },
+  audio: { icon: FiMusic, tint: "bg-purple-50 text-purple-700 dark:bg-purple-400/10 dark:text-purple-300" },
+  video: { icon: FiFilm, tint: "bg-purple-50 text-purple-700 dark:bg-purple-400/10 dark:text-purple-300" },
+  youtube: { icon: FiYoutube, tint: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300" },
+  web: { icon: FiGlobe, tint: "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300" },
 };
 
 function DocRow({ doc, selected, onToggle, onRemove, onAsk }) {
   const [showGuide, setShowGuide] = useState(false);
-  const Icon = KIND_ICON[doc.kind] || FiFileText;
+  const { icon: Icon, tint } = KIND[doc.kind] || KIND.text;
   const working = doc.status === "queued" || doc.status === "processing";
 
   return (
-    <li className="group flex items-start gap-2.5 rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] px-3 py-2.5 shadow-2xs transition-all duration-150 hover:border-[#D6CFC2] dark:border-[#2A2826] dark:bg-[#22201E] dark:hover:border-[#3A3734]">
-      {doc.status === "ready" && (
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={() => onToggle(doc.id)}
-          aria-label={`Ask only about ${doc.name}`}
-          title="Ask only about this source"
-          className="mt-2 h-3.5 w-3.5 shrink-0 cursor-pointer accent-[#C85A32]"
-        />
-      )}
-      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#F3EFEA] text-[#57534E] dark:bg-[#2C2926] dark:text-[#A8A29E]">
-        <Icon size={14} />
-      </div>
+    <li className="group rounded-xl px-2 py-2 transition hover:bg-[#F3EFEA] dark:hover:bg-[#22201E]">
+      <div className="flex items-center gap-3">
+        <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${tint}`}>
+          <Icon size={15} />
+        </span>
 
-      <div className="min-w-0 flex-1">
-        <p
-          className="truncate text-xs font-medium text-[#1C1917] dark:text-[#F5F2EB]"
-          title={doc.name}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium text-[#1C1917] dark:text-[#F5F2EB]" title={doc.name}>
+            {doc.name}
+          </p>
+          {working && (
+            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#C85A32] dark:text-[#D97757]">
+              <FiLoader className="shrink-0 animate-spin" size={11} />
+              <span className="truncate">{doc.message || "Queued…"}</span>
+            </p>
+          )}
+          {doc.status === "error" && (
+            <p className="mt-0.5 flex items-start gap-1 text-[11px] text-red-600 dark:text-red-400">
+              <FiAlertCircle className="mt-0.5 shrink-0" size={11} />
+              <span>{doc.message}</span>
+            </p>
+          )}
+          {doc.status === "ready" && (
+            <p className="mt-0.5 text-[11px] text-[#78716C] dark:text-[#A8A29E]">{doc.chunks} passages</p>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onRemove(doc.id)}
+          aria-label={`Remove ${doc.name}`}
+          className="shrink-0 cursor-pointer rounded-full p-1.5 text-[#A8A29E] opacity-100 transition hover:bg-red-500/10 hover:text-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100 dark:text-[#78716C] dark:hover:text-red-400"
         >
-          {doc.name}
-        </p>
-
-        {working && (
-          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#C85A32] dark:text-[#D97757]">
-            <FiLoader className="animate-spin" size={11} />
-            <span>{doc.message || "Queued…"}</span>
-          </p>
-        )}
-
-        {doc.status === "error" && (
-          <p className="mt-0.5 flex items-start gap-1 text-[11px] text-red-600 dark:text-red-400">
-            <FiAlertCircle className="mt-0.5 shrink-0" size={11} />
-            <span>{doc.message}</span>
-          </p>
-        )}
+          <FiTrash2 size={13} />
+        </button>
 
         {doc.status === "ready" && (
-          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#78716C] dark:text-[#A8A29E]">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
-            <span>Ready · {doc.chunks} passages</span>
-          </p>
-        )}
-
-        {doc.guide && (
-          <div className="mt-1.5">
-            <button
-              type="button"
-              onClick={() => setShowGuide((v) => !v)}
-              aria-expanded={showGuide}
-              className="cursor-pointer text-[11px] font-medium text-[#C85A32] hover:underline dark:text-[#D97757]"
-            >
-              {showGuide ? "Hide source guide" : "Source guide"}
-            </button>
-            {showGuide && (
-              <div className="mt-1.5 space-y-2 text-[11px] leading-relaxed text-[#57534E] dark:text-[#A8A29E]">
-                <p>{doc.guide.summary}</p>
-                {doc.guide.topics?.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {doc.guide.topics.map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full bg-[#F3EFEA] px-2 py-0.5 text-[10px] text-[#57534E] dark:bg-[#2C2926] dark:text-[#A8A29E]"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {doc.guide.questions?.map((q) => (
-                  <button
-                    key={q}
-                    type="button"
-                    onClick={() => onAsk?.(q)}
-                    className="block w-full cursor-pointer rounded-lg border border-[#E6E1D6] px-2 py-1.5 text-left text-[11px] text-[#292524] hover:border-[#C85A32]/60 dark:border-[#2A2826] dark:text-[#E7E5E4] dark:hover:border-[#D97757]/60"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggle(doc.id)}
+            aria-label={`Ask only about ${doc.name}`}
+            title="Ask only about this source"
+            className="size-4 shrink-0 cursor-pointer accent-[#C85A32]"
+          />
         )}
       </div>
 
-      <button
-        onClick={() => onRemove(doc.id)}
-        aria-label={`Remove ${doc.name}`}
-        className="shrink-0 rounded-lg p-1.5 text-[#A8A29E] opacity-80 transition hover:bg-red-500/10 hover:text-red-600 group-hover:opacity-100 dark:text-[#78716C] dark:hover:text-red-400 cursor-pointer"
-      >
-        <FiTrash2 size={13} />
-      </button>
+      {doc.guide && (
+        <div className="ml-11 mt-1">
+          <button
+            type="button"
+            onClick={() => setShowGuide((v) => !v)}
+            aria-expanded={showGuide}
+            className="cursor-pointer text-[11px] font-medium text-[#C85A32] hover:underline dark:text-[#D97757]"
+          >
+            {showGuide ? "Hide source guide" : "Source guide"}
+          </button>
+          {showGuide && (
+            <div className="fade-up mt-2 space-y-2.5 text-[12px] leading-relaxed text-[#57534E] dark:text-[#A8A29E]">
+              <p>{doc.guide.summary}</p>
+              {doc.guide.topics?.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {doc.guide.topics.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full bg-[#EAE4DC]/70 px-2 py-0.5 text-[10px] text-[#57534E] dark:bg-[#2C2926] dark:text-[#A8A29E]"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {doc.guide.questions?.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => onAsk?.(q)}
+                  className="block w-full cursor-pointer rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] px-3 py-2 text-left text-[12px] text-[#292524] transition hover:border-[#C85A32]/60 dark:border-[#2A2826] dark:bg-[#1C1B19] dark:text-[#E7E5E4]"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </li>
   );
 }
@@ -140,176 +139,110 @@ export default function LibraryPanel({
   onAsk,
   selectedIds = [],
   onToggle,
-  hideHeader = false,
+  onClearSelection,
+  onCollapse,
 }) {
-  const fileInput = useRef(null);
-  const [dragging, setDragging] = useState(false);
-  const [url, setUrl] = useState("");
   const [adding, setAdding] = useState(false);
-
-  const submitLink = async () => {
-    if (!url.trim() || adding) return;
-    setAdding(true);
-    if (await onLink(url.trim())) setUrl("");
-    setAdding(false);
-  };
-
-  const accept = config.allowed_extensions.map((e) => `.${e}`).join(",");
+  const empty = docs.length === 0 && uploads.length === 0;
+  const atLimit = docs.length >= config.max_docs;
 
   return (
-    <section className="mx-auto w-full max-w-3xl space-y-3 px-3.5 pb-5 pt-4 sm:px-5 xl:px-3.5 xl:pt-2">
-      <div className="flex items-center justify-between">
-        {!hideHeader ? (
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
-            Sources ({docs.length}/{config.max_docs})
-          </h2>
-        ) : (
-          <span className="text-[11px] text-[#78716C] dark:text-[#A8A29E]">
-            {docs.length} of {config.max_docs} sources added
-          </span>
-        )}
-        {docs.length > 0 && (
-          <button
-            onClick={onClear}
-            className="text-[11px] font-medium text-[#78716C] transition hover:text-red-600 dark:text-[#A8A29E] dark:hover:text-red-400 cursor-pointer"
-          >
-            Clear all
+    <Panel
+      title={
+        <>
+          Sources <span className="text-sm font-normal text-[#78716C] dark:text-[#A8A29E]">({docs.length}/{config.max_docs})</span>
+        </>
+      }
+      actions={
+        onCollapse && (
+          <button type="button" onClick={onCollapse} aria-label="Collapse sources" title="Collapse" className={`${ICON_BTN} hidden xl:inline-flex`}>
+            <FiChevronsLeft size={17} />
           </button>
+        )
+      }
+    >
+      <div className="space-y-3 px-3 pb-4">
+        <button type="button" onClick={() => setAdding(true)} disabled={atLimit} className={`${PILL_BTN} w-full`}>
+          <FiPlus size={16} />
+          {atLimit ? "Source limit reached" : "Add sources"}
+        </button>
+
+        {error && (
+          <div
+            onClick={clearError}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && clearError()}
+            className="flex cursor-pointer items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300"
+          >
+            <FiAlertCircle className="mt-0.5 shrink-0" size={13} />
+            <span className="flex-1 leading-snug">{error}</span>
+          </div>
+        )}
+
+        {empty ? (
+          <div className="px-3 py-10 text-center">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-[#F3EFEA] text-[#A8A29E] dark:bg-[#262421]">
+              <FiFileText size={20} />
+            </span>
+            <p className="mt-3 text-sm font-medium text-[#1C1917] dark:text-[#F5F2EB]">Saved sources will appear here</p>
+            <p className="mt-1 text-xs leading-relaxed text-[#78716C] dark:text-[#A8A29E]">
+              Add PDFs, websites, YouTube videos, notes, audio or slides to get started.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between px-2 text-[11px] text-[#78716C] dark:text-[#A8A29E]">
+              <span>{selectedIds.length > 0 ? `${selectedIds.length} selected` : "All sources in use"}</span>
+              {selectedIds.length > 0 && (
+                <button type="button" onClick={onClearSelection} className="cursor-pointer font-medium text-[#C85A32] hover:underline dark:text-[#D97757]">
+                  Use all
+                </button>
+              )}
+            </div>
+
+            <ul className="space-y-0.5">
+              {uploads.map((u) => (
+                <li key={u.id} className="rounded-xl px-2 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[13px] font-medium text-[#1C1917] dark:text-[#F5F2EB]">{u.name}</p>
+                    <span className="shrink-0 text-[11px] font-medium text-[#C85A32] dark:text-[#D97757]">{u.progress}%</span>
+                  </div>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#EAE4DC] dark:bg-[#2C2926]">
+                    <div className="h-full rounded-full bg-[#C85A32] transition-all duration-200 dark:bg-[#D97757]" style={{ width: `${u.progress}%` }} />
+                  </div>
+                </li>
+              ))}
+              {docs.map((d) => (
+                <DocRow key={d.id} doc={d} selected={selectedIds.includes(d.id)} onToggle={onToggle} onRemove={onRemove} onAsk={onAsk} />
+              ))}
+            </ul>
+
+            {docs.length > 0 && (
+              <div className="flex justify-end px-2">
+                <button
+                  type="button"
+                  onClick={onClear}
+                  className="cursor-pointer text-[11px] font-medium text-[#78716C] transition hover:text-red-600 dark:text-[#A8A29E] dark:hover:text-red-400"
+                >
+                  Remove all
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* Upload Dropzone */}
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => fileInput.current?.click()}
-        onKeyDown={(e) => e.key === "Enter" && fileInput.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          onFiles(e.dataTransfer.files);
-        }}
-        className={`group cursor-pointer rounded-xl border border-dashed px-3.5 py-4 text-center transition-all duration-150 ${
-          dragging
-            ? "border-[#C85A32] bg-[#C85A32]/8 dark:border-[#D97757] dark:bg-[#D97757]/10"
-            : "border-[#D6CFC2] bg-[#FAF8F5]/70 hover:border-[#C85A32]/60 hover:bg-[#FAF8F5] dark:border-[#35322F] dark:bg-[#141312]/50 dark:hover:border-[#D97757]/60 dark:hover:bg-[#22201E]"
-        }`}
-      >
-        <div className="mx-auto mb-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#EAE4DC] text-[#57534E] transition-colors group-hover:bg-[#C85A32]/15 group-hover:text-[#C85A32] dark:bg-[#262421] dark:text-[#A8A29E] dark:group-hover:bg-[#D97757]/15 dark:group-hover:text-[#D97757]">
-          <FiUploadCloud size={17} />
-        </div>
-        <p className="text-xs font-medium text-[#1C1917] dark:text-[#F5F2EB]">
-          Drop files or click to upload
-        </p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-[#78716C] dark:text-[#A8A29E]">
-          PDF, Word, Slides, TXT/MD, audio &amp; video · up to {config.max_upload_mb} MB
-        </p>
-        <input
-          ref={fileInput}
-          type="file"
-          multiple
-          accept={accept}
-          className="hidden"
-          onChange={(e) => {
-            onFiles(e.target.files);
-            e.target.value = "";
-          }}
+      {adding && (
+        <AddSourcesDialog
+          config={config}
+          showSample={empty}
+          onFiles={onFiles}
+          onLink={onLink}
+          onSample={onSample}
+          onClose={() => setAdding(false)}
         />
-      </div>
-
-      {/* Link Input */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <FiLink
-            size={13}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#78716C] dark:text-[#A8A29E]"
-          />
-          <input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submitLink()}
-            placeholder="YouTube or web link…"
-            className="w-full rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] py-2 pl-8 pr-2.5 text-xs text-[#1C1917] outline-none transition placeholder:text-[#A8A29E] focus:border-[#C85A32] focus:ring-2 focus:ring-[#C85A32]/15 dark:border-[#2A2826] dark:bg-[#22201E] dark:text-[#F5F2EB] dark:placeholder:text-[#78716C] dark:focus:border-[#D97757] dark:focus:ring-[#D97757]/15"
-          />
-        </div>
-        <button
-          onClick={submitLink}
-          disabled={adding || !url.trim()}
-          className="min-h-10 rounded-xl bg-[#1C1917] px-3 py-2 text-xs font-medium text-[#FAF8F5] transition hover:bg-[#292524] disabled:cursor-not-allowed disabled:bg-[#E6E1D6] disabled:text-[#A8A29E] dark:bg-[#F5F2EB] dark:text-[#141312] dark:hover:bg-[#E7E5E4] dark:disabled:bg-[#262421] dark:disabled:text-[#57534E] cursor-pointer"
-        >
-          {adding ? "…" : "Add"}
-        </button>
-      </div>
-
-      {docs.length === 0 && uploads.length === 0 && (
-        <button
-          type="button"
-          onClick={onSample}
-          className="w-full cursor-pointer rounded-xl border border-[#E6E1D6] px-3 py-2 text-xs font-medium text-[#57534E] transition hover:border-[#C85A32]/60 hover:text-[#C85A32] dark:border-[#2A2826] dark:text-[#A8A29E] dark:hover:border-[#D97757]/60 dark:hover:text-[#D97757]"
-        >
-          Try it with a sample note
-        </button>
       )}
-
-      {error && (
-        <div
-          onClick={clearError}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === "Enter" && clearError()}
-          className="flex cursor-pointer items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300"
-        >
-          <FiAlertCircle className="mt-0.5 shrink-0" size={13} />
-          <span className="flex-1 leading-snug">{error}</span>
-        </div>
-      )}
-
-      {/* Active Uploads & Document List */}
-      {(uploads.length > 0 || docs.length > 0) && (
-        <ul className="space-y-1.5 pt-0.5">
-          {uploads.map((u) => (
-            <li
-              key={u.id}
-              className="rounded-xl border border-[#E6E1D6] bg-[#FFFFFF] px-3 py-2.5 dark:border-[#2A2826] dark:bg-[#22201E]"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-xs font-medium text-[#1C1917] dark:text-[#F5F2EB]">
-                  {u.name}
-                </p>
-                <span className="shrink-0 text-[11px] font-medium text-[#C85A32] dark:text-[#D97757]">
-                  {u.progress}%
-                </span>
-              </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EAE4DC] dark:bg-[#2C2926]">
-                <div
-                  className="h-full rounded-full bg-[#C85A32] transition-all duration-200 dark:bg-[#D97757]"
-                  style={{ width: `${u.progress}%` }}
-                />
-              </div>
-            </li>
-          ))}
-
-          {docs.map((d) => (
-            <DocRow
-              key={d.id}
-              doc={d}
-              selected={selectedIds.includes(d.id)}
-              onToggle={onToggle}
-              onRemove={onRemove}
-              onAsk={onAsk}
-            />
-          ))}
-        </ul>
-      )}
-
-      <p className="pt-1 text-[11px] leading-relaxed text-[#78716C]">
-        Sources are saved with this notebook. Tick a source to ask or create from just that one.
-      </p>
-    </section>
+    </Panel>
   );
 }

@@ -31,7 +31,8 @@ def make_lib():
 
 
 def make_service(script=None, web=None, **overrides):
-    settings = Settings(**{"rate_limit_enabled": False, **overrides})
+    legacy = {"fast_router": False, "grade_mode": "llm", "self_check_min_chars": 0}
+    settings = Settings(**{"rate_limit_enabled": False, **legacy, **overrides})
     script = script or Script()
     cp = InMemorySaver()
     graph = build_chat_graph(settings, script.chains(settings), web or FakeWeb(), cp)
@@ -133,7 +134,7 @@ def test_self_check_can_be_disabled():
 
 
 def test_grading_can_be_disabled():
-    svc, script, _ = make_service(grade_docs=False)
+    svc, script, _ = make_service(grade_mode="off")
     ev = run(svc, make_lib()[0], "closures")
     assert "grade" not in step_ids(ev) and script.calls_of("grade") == []
 
@@ -249,3 +250,63 @@ def test_unconfigured_chains_raise_user_error():
     from app.errors import UserError
     with pytest.raises(UserError):
         Chains(Settings()).generate.invoke({})
+
+
+# ---------------------------------------------------------------- Phase 1: speed
+def test_first_message_skips_router_llm():
+    svc, script, _ = make_service(fast_router=True)
+    ev = run(svc, make_lib()[0], "what are closures?")
+    assert script.calls_of("analyze") == [] and "retrieve" in step_ids(ev)
+
+
+def test_small_talk_goes_direct_without_router_llm():
+    svc, script, _ = make_service(fast_router=True)
+    ev = run(svc, make_lib()[0], "thanks!")
+    assert script.calls_of("analyze") == [] and step_ids(ev)[-1] == "direct"
+
+
+def test_follow_up_still_uses_router_to_resolve_references():
+    svc, script, _ = make_service(fast_router=True)
+    lib, _ = make_lib()
+    run(svc, lib, "what are closures?")
+    run(svc, lib, "explain that again")
+    assert len(script.calls_of("analyze")) == 1
+
+
+def test_score_grading_makes_no_llm_call_and_applies_threshold():
+    svc, script, _ = make_service(grade_mode="score", min_score=0.2)
+    ev = run(svc, make_lib()[0], "closures capture variables")
+    assert script.calls_of("grade") == [] and "grade" not in step_ids(ev)
+    assert final(ev)["sources"]
+
+    svc, script, _ = make_service(grade_mode="score", min_score=0.99)  # nothing is that similar
+    ev = run(svc, make_lib()[0], "closures capture variables")
+    assert "couldn't find anything" in text_of(ev) and script.calls_of("generate") == []
+
+
+def test_short_library_answers_skip_the_llm_fact_check():
+    svc, script, _ = make_service(self_check_min_chars=500)
+    ev = run(svc, make_lib()[0], "closures")
+    assert script.calls_of("check") == [] and "self_check" not in step_ids(ev)
+
+
+def test_long_answers_are_fact_checked():
+    script = Script(); script.generate_texts = ["Closures matter [S1]. " * 40]
+    svc, _, _ = make_service(script, self_check_min_chars=500)
+    run(svc, make_lib()[0], "closures")
+    assert len(script.calls_of("check")) == 1
+
+
+# ------------------------------------------------------------ Phase 1: citations
+def test_invalid_citation_forces_one_rewrite_even_without_llm_check():
+    script = Script(); script.generate_texts = ["Wrong [S9].", "Right [S1]."]
+    svc, _, _ = make_service(script, self_check_min_chars=500)
+    ev = run(svc, make_lib()[0], "closures")
+    assert text_of(ev) == "Right [S1]." and script.calls_of("check") == []
+    assert "S9" in script.calls_of("generate")[1]["feedback"]
+
+
+def test_uncited_answer_shows_no_referenced_sources():
+    script = Script(); script.generate_texts = ["An answer with no citations."]
+    svc, _, _ = make_service(script)
+    assert final(run(svc, make_lib()[0], "closures"))["sources"] == []

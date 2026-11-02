@@ -113,7 +113,7 @@ export function uploadFile(nid, file, onProgress) {
  * A stream that ends without `done` is reported as an error so the UI never hangs.
  */
 export async function streamPost(path, nid, body, handlers = {}) {
-  const { onToken, onStep, onReset, onData, onQuestions, onDone, onError, signal } = handlers;
+  const { onToken, onStep, onReset, onData, onQuestions, onOutput, onDone, onError, signal } = handlers;
   let finished = false;
   try {
     const res = await fetch(`${API_BASE}${path}`, {
@@ -146,6 +146,7 @@ export async function streamPost(path, nid, body, handlers = {}) {
           if (json[key]) onData?.(key, json[key]);
         }
         if (json.questions) onQuestions?.(json.questions);
+        if (json.studio_output) onOutput?.(json.studio_output); // a Studio item made from a chat request
         if (json.done) {
           finished = true;
           onDone?.(json.sources || [], json.meta || {}, json.output || null);
