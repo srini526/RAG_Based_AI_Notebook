@@ -13,7 +13,7 @@ import {
   FiYoutube,
 } from "react-icons/fi";
 
-import AddSourcesDialog from "./AddSourcesDialog";
+import AddSourcesDialog from "./AddSourcesdialog";
 import Panel from "./Panel";
 import { ICON_BTN, PILL_BTN } from "../hooks/Ui.js";
 
