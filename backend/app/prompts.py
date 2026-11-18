@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-
 ANALYZE = ChatPromptTemplate.from_messages([
     ("system",
      "You route questions for a study assistant. The user has a private library of uploaded "

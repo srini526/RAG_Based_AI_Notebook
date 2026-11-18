@@ -20,11 +20,11 @@ from .embeddings import BGEEmbeddings, EmbeddingClient
 from .errors import ApiError, UserError
 from .generate import Generator
 from .ingest import IngestManager, sweep_stale_workdirs
+from .reranker import CloudflareReranker
 from .routes import make_blueprint
 from .store import NotebookStore
 from .transcribe import Transcriber
 from .websearch import WebSearch
-from .reranker import CloudflareReranker
 
 log = logging.getLogger("app")
 
