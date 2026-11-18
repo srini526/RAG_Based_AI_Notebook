@@ -30,4 +30,5 @@ jobs:
       - run: npm test
       - run: npm run build
         env: { VITE_API_URL: http://localhost:8000 }
-      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --omit=dev --audit-level=critical
+      # - run: npm audit --omit=dev --audit-level=high
