@@ -74,7 +74,7 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
           className={`mt-5 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-4 py-9 text-center transition ${
             dragging
               ? "border-[#C85A32] bg-[#C85A32]/8 dark:border-[#D97757] dark:bg-[#D97757]/10"
-              : "border-[#D6CFC2] hover:border-[#C85A32]/60 dark:border-[#35322F] dark:bg-[#141312]/40 dark:hover:border-[#D97757]/60"
+              : "border-[#D6CFC2] hover:border-[#C85A32]/60 dark:border-[#35322F] dark:hover:bg-[#18120F] dark:bg-[#141312]/40 dark:hover:border-[#D97757]/60"
           }`}
         >
           <span className="flex size-12 items-center justify-center rounded-full bg-[#C85A32]/12 text-[#C85A32] dark:bg-[#D97757]/15 dark:text-[#D97757]">
