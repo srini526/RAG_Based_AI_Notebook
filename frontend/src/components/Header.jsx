@@ -51,7 +51,7 @@ export default function Header({ theme, title, onTitle, onBack }) {
           />
         ) : (
           <h1 className="truncate font-serif-editorial text-base font-medium tracking-tight text-[#1C1917] sm:text-lg dark:text-[#F5F2EB]">
-            AI Study Assistant
+            RAG Based AI Notebook
           </h1>
         )}
       </div>

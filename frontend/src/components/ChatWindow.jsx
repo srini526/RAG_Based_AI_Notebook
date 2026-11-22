@@ -27,7 +27,7 @@ function EmptyState({ hasReady, starters, onPick }) {
               key={q}
               type="button"
               onClick={() => onPick(q)}
-              className="w-full cursor-pointer rounded-2xl border border-[#E6E1D6] bg-[#FFFFFF] px-4 py-3 text-left text-sm text-[#292524] transition hover:border-[#C85A32]/60 hover:bg-[#FAF8F5] dark:border-[#2A2826] dark:bg-[#1C1B19] dark:text-[#E7E5E4] dark:hover:border-[#D97757]/60"
+              className="w-full cursor-pointer rounded-2xl border border-[#E6E1D6] bg-[#FFFFFF] px-4 py-3 text-left text-sm text-[#292524] transition hover:border-[#C85A32]/60 dark:border-[#2A2826] dark:bg-[#1C1B19] dark:text-[#E7E5E4] dark:hover:border-[#D97757]/60"
             >
               {q}
             </button>
