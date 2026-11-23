@@ -92,6 +92,7 @@ def download_audio(video_id: str, workdir: str, settings) -> str:
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
+        "js_runtimes": {"deno": {}, "node": {}},
         "socket_timeout": 30,
         "retries": 3,
         "max_filesize": 300 * 1024 * 1024,
@@ -118,7 +119,7 @@ def download_audio(video_id: str, workdir: str, settings) -> str:
             e,
         )
         raise UserError(
-            "YouTube download failed. Check server logs for details."
+            "Couldn't import this YouTube video. Upload its transcript or an audio or video file you can use."
         ) from e
     files = [f for f in os.listdir(workdir) if f.startswith("yt.")]
     if not files:
