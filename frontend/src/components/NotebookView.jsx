@@ -181,8 +181,8 @@ export default function NotebookView({ nid, data, theme, onHome }) {
         <aside aria-label="Studio" className={`${tab === "studio" ? "block" : "hidden"} min-h-0 xl:block`}>
           {studioOpen ? (
             <StudioPanel
-              studio={{ ...studio, generate: (kind) => studio.generate(kind, scope) }}
-              hasReady={sources.hasReady}
+              studio={{ ...studio, generate: (kind, focus) => studio.generate(kind, scope, focus) }}
+              readyCount={readyCount}
               scopeCount={scope.length}
               onCite={setCited}
               wide={studioWide}

@@ -66,6 +66,8 @@ export default function OutputViewer({
   const sources = content?.sources || [];
   const structured = Boolean(content?.quiz || content?.flashcards || content?.mindmap);
   const hasContent = Boolean(markdown || structured);
+  const details = [busy ? "Generating…" : "", content?.focus,
+    sources.length > 0 ? `${sources.length} ${sources.length === 1 ? "citation" : "citations"}` : ""].filter(Boolean).join(" · ");
   const tool = TOOL[kind];
   const Icon = tool?.icon;
 
@@ -150,10 +152,7 @@ export default function OutputViewer({
           )}
           <div className="min-w-0">
             <h3 className="truncate font-serif-editorial text-xl font-medium tracking-tight text-[#1C1917] dark:text-[#F5F2EB]">{title}</h3>
-            <p className="text-xs text-[#78716C] dark:text-[#A8A29E]">
-              {busy ? "Generating…" : tool?.label}
-              {sources.length > 0 && ` · ${sources.length} ${sources.length === 1 ? "source" : "sources"}`}
-            </p>
+            {details && <p className="break-words text-xs text-[#78716C] dark:text-[#A8A29E]">{details}</p>}
           </div>
         </div>
 

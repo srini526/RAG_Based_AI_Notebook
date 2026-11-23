@@ -43,7 +43,9 @@ export default function StepProgress({ steps = [], meta, streaming }) {
   return (
     <div className="mb-3">
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[#E6E1D6] bg-[#F3EFEA]/70 px-2.5 py-1 text-xs text-[#57534E] transition hover:border-[#D6CFC2] hover:text-[#1C1917] dark:border-[#2A2826] dark:bg-[#1C1B19] dark:text-[#A8A29E] dark:hover:border-[#3A3734] dark:hover:text-[#F5F2EB] cursor-pointer"
       >
         <FiChevronDown

@@ -58,6 +58,7 @@ def test_quiz_request_uses_studio_generator_not_rag():
     assert step_ids(ev)[:2] == ["analyze", "studio"]
     result = next(e["studio_result"] for e in ev if "studio_result" in e)
     assert result["kind"] == "quiz" and len(result["content"]["quiz"]["questions"]) == 1
+    assert result["content"]["focus"] == "closures"
     assert "Quiz" in text_of(ev) and "1 questions" in text_of(ev)
     assert final(ev)["meta"]["mode"] == "studio"
     # no router call, no retrieval/answer chain: only the Studio chain ran
