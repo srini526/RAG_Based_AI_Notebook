@@ -62,6 +62,20 @@ describe("citations", () => {
     const link = await screen.findByText("click");
     expect(link.closest("a")?.getAttribute("href") || "").not.toContain("javascript");
   });
+
+  it("renders structured answers and copies fenced code without interpreting code as citations", async () => {
+    const second = { ...SOURCE, id: "S2" };
+    const { container } = render(<Markdown sources={[SOURCE, second]}>
+      {['## Comparison', '', '| Mechanism |', '| --- |', '| Scope [S1][S2] |', '', '```js', 'const label = "[S1]";', '```'].join("\n")}
+    </Markdown>);
+    expect(screen.getByRole("heading", { name: "Comparison" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Mechanism" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Open source 1" })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Open source 2" })).toBeTruthy();
+    expect(container.querySelector("pre").textContent).toContain('const label = "[S1]";');
+    await userEvent.click(screen.getByRole("button", { name: "Copy code" }));
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('const label = "[S1]";');
+  });
 });
 
 describe("Studio widgets", () => {
@@ -153,6 +167,21 @@ describe("NotebookView", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: /ask only about notes.md/i }));
     await userEvent.click(screen.getByRole("button", { name: /^faq/i }));
     expect(streamGenerate).toHaveBeenCalledWith(DATA.notebook.id, { kind: "faq", doc_ids: ["d1"] }, expect.anything());
+  });
+
+  it("saves a focused Studio output and finds it by topic", async () => {
+    streamGenerate.mockImplementation(async (_nid, _body, h) => {
+      h.onDone([], { kind: "study_guide" }, { id: "o3", kind: "study_guide", title: "Study guide",
+        created_at: Date.now() / 1000, content: { focus: "Lexical scope", markdown: "## Key concepts" } });
+    });
+    view();
+    await userEvent.type(screen.getByLabelText(/focus topic/i), " Lexical scope ");
+    await userEvent.click(screen.getByRole("button", { name: /^study guide/i }));
+    expect(streamGenerate).toHaveBeenCalledWith(DATA.notebook.id, { kind: "study_guide", focus: "Lexical scope" }, expect.anything());
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search saved outputs" }), "lexical");
+    expect(screen.queryByRole("button", { name: "Open Briefing doc" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Open Study guide" }));
+    expect(await screen.findByRole("heading", { name: "Key concepts" })).toBeTruthy();
   });
 
   it("shows an error message and unlocks the input when generation fails", async () => {

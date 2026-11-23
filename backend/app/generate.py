@@ -44,10 +44,11 @@ def sample_evenly(passages: list[Document], budget_chars: int) -> list[Document]
 def _clean_quiz(quiz: Quiz) -> list[dict]:
     out = []
     for q in quiz.questions[:8]:
-        options = [o.strip() for o in q.options if o and o.strip()][:6]
-        if len(options) >= 2 and 0 <= q.answer_index < len(options) and q.question.strip():
-            out.append({"question": q.question.strip(), "options": options,
-                        "answer_index": q.answer_index, "explanation": q.explanation.strip()})
+        options = [(i, o.strip()) for i, o in enumerate(q.options) if o.strip()][:6]
+        answer_index = next((i for i, (original, _) in enumerate(options) if original == q.answer_index), None)
+        if answer_index is not None and len(options) >= 2 and q.question.strip():
+            out.append({"question": q.question.strip(), "options": [o for _, o in options],
+                        "answer_index": answer_index, "explanation": q.explanation.strip()})
     return out
 
 
@@ -87,7 +88,7 @@ class Generator:
         titles = ", ".join(dict.fromkeys(s["title"] for s in sources))[:600]
         inputs = {
             "sources": format_context(passages, sources),
-            "titles": f"{titles} (focus on: {focus})" if focused else titles,
+            "titles": f"{titles}\nRequested focus: {focus}" if focus else titles,
         }
 
         yield {"step": {"id": "read", "label": "Reading your sources"}}

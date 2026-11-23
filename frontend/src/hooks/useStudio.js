@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { deleteOutput, streamGenerate } from "../services/api";
 
 /** Studio outputs of one notebook (saved on the server) plus the one being generated. */
@@ -9,42 +9,51 @@ export default function useStudio(nid, initialOutputs) {
   const [watching, setWatching] = useState(false); // is the reader looking at the draft being generated?
   const abortRef = useRef(null);
   const watchingRef = useRef(false);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const watch = (on) => {
     watchingRef.current = on;
     setWatching(on);
   };
 
-  const patchDraft = (update) => setDraft((d) => (d ? update(d) : d));
   const generating = draft !== null && !draft.error;
 
-  const generate = async (kind, docIds = []) => {
-    if (generating) return;
+  const generate = async (kind, docIds = [], topic = "") => {
+    if (abortRef.current) return;
+    const focus = topic.trim();
     setActiveId(null);
     watch(false);
-    setDraft({ kind, text: "", steps: [], data: null, error: "" });
+    setDraft({ kind, focus, text: "", steps: [], data: null, error: "" });
     const controller = new AbortController();
     abortRef.current = controller;
-    await streamGenerate(nid, { kind, ...(docIds.length ? { doc_ids: docIds } : {}) }, {
+    const isCurrent = () => abortRef.current === controller && !controller.signal.aborted;
+    const patchDraft = (update) => {
+      if (isCurrent()) setDraft((d) => (d ? update(d) : d));
+    };
+    const body = { kind, ...(docIds.length ? { doc_ids: docIds } : {}), ...(focus ? { focus } : {}) };
+    await streamGenerate(nid, body, {
       signal: controller.signal,
       onStep: (step) => patchDraft((d) => ({ ...d, steps: [...d.steps, step] })),
       onToken: (token) => patchDraft((d) => ({ ...d, text: d.text + token })),
       onData: (key, value) => patchDraft((d) => ({ ...d, data: { [key]: value } })),
       onDone: (_sources, _meta, output) => {
-        if (output) {
-          setOutputs((o) => [output, ...o]);
-          // Like NotebookLM: the new item lands in the list; it opens only if you were watching it.
-          setActiveId((current) => (current === null && watchingRef.current ? output.id : current));
+        if (!isCurrent()) return;
+        if (!output) {
+          patchDraft((d) => ({ ...d, error: "Couldn't save this output. Try again." }));
+          return;
         }
+        setOutputs((o) => [output, ...o]);
+        setActiveId((current) => (current === null && watchingRef.current ? output.id : current));
         setDraft(null);
       },
-      onError: (err) => setDraft((d) => ({ ...(d || { kind, text: "", steps: [], data: null }), error: err.message })),
+      onError: (err) => patchDraft((d) => ({ ...d, error: err.message })),
     });
-    abortRef.current = null;
+    if (isCurrent()) abortRef.current = null;
   };
 
   const cancel = () => {
     abortRef.current?.abort();
+    abortRef.current = null;
     watch(false);
     setDraft(null);
   };

@@ -339,14 +339,15 @@ def build_chat_graph(settings, chains: Chains, web, checkpointer, generator=None
         kind = state["tool"]
         title = TITLES[kind]
         ids = set(state.get("doc_ids") or []) or None
+        focus = state.get("focus", "").strip()[:160]
         writer({"step": {"id": "studio", "label": f"Creating your {title.lower()} in Studio"}})
-        content: dict = {}
+        content: dict = {"focus": focus} if focus else {}
         text: list[str] = []
         sources: list[dict] = []
         try:
             if budget:
                 budget.spend("generate")
-            for ev in generator.stream(runtime.context.lib, kind, ids, state.get("focus", "")):
+            for ev in generator.stream(runtime.context.lib, kind, ids, focus):
                 if "step" in ev:
                     writer(ev)
                 text.append(ev.get("token", ""))

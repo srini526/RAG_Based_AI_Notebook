@@ -288,9 +288,9 @@ def make_blueprint(svc, limiter) -> Blueprint:
         return jsonify(ok=True)
 
     # ------------------------------------------------------------ Studio
-    def saving_output(events, nid: str, kind: str):
+    def saving_output(events, nid: str, kind: str, focus: str):
         text: list[str] = []
-        content: dict = {}
+        content: dict = {"focus": focus} if focus else {}
         for ev in events:
             text.append(ev.get("token", ""))
             for key in ("quiz", "flashcards", "mindmap"):
@@ -316,9 +316,13 @@ def make_blueprint(svc, limiter) -> Blueprint:
             raise ApiError("bad_kind", "Unknown tool.", 400)
         if lib.ready_count() == 0:
             raise ApiError("empty_library", "Add a source first.", 400)
+        focus = data.get("focus", "")
+        if not isinstance(focus, str):
+            raise ApiError("bad_focus", "The focus topic must be text.", 400)
+        focus = focus.strip()[:160]
         svc.budget.spend("generate")
-        events = svc.generate.stream(lib, kind, _doc_ids(data.get("doc_ids")))
-        return _sse_response(saving_output(events, nid, kind))
+        events = svc.generate.stream(lib, kind, _doc_ids(data.get("doc_ids")), focus)
+        return _sse_response(saving_output(events, nid, kind, focus))
 
     @bp.delete("/outputs/<output_id>")
     def delete_output(output_id):

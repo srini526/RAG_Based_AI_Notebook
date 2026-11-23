@@ -253,13 +253,6 @@ html:not(.dark) .hljs-template-variable {
   overflow-wrap: normal;
 }
 
-.prose table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-}
-
 .prose img,
 .prose video {
   max-width: 100%;

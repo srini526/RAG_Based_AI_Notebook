@@ -91,6 +91,18 @@ def test_generate_can_be_limited_to_selected_documents(client, sid, script):
     assert "Alpha" in seen["sources"] and "Beta" not in seen["sources"] and seen["titles"] == "a.md"
 
 
+def test_studio_focus_reaches_model_and_is_saved(client, sid, script):
+    doc_id = add_note(client, sid)
+    done = events_of(generate(client, sid, "study_guide", doc_ids=[doc_id], focus="  lexical scope  "))[-1]
+    assert done["output"]["content"]["focus"] == "lexical scope"
+    seen = script.calls_of("study_guide")[0]
+    assert seen["titles"] == "notes.md\nRequested focus: lexical scope"
+    assert "A closure remembers variables" in seen["sources"]
+    saved = client.get("/api/notebook", headers=H(sid)).get_json()["outputs"]
+    assert saved[0]["content"]["focus"] == "lexical scope"
+    assert generate(client, sid, "study_guide", focus=[]).get_json()["error"]["code"] == "bad_focus"
+
+
 def test_sample_evenly_keeps_whole_range():
     from langchain_core.documents import Document
     passages = [Document(page_content=f"{i:03d}" + "x" * 97) for i in range(100)]  # 10,000 chars

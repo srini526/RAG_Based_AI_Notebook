@@ -80,8 +80,8 @@ export default function ChatMessage({
   const showActions = !streaming && message && !error;
 
   return (
-    <article className="min-w-0">
-      <StepProgress steps={steps} meta={meta} streaming={streaming} />
+    <article className="min-w-0" aria-label="Assistant response">
+      {streaming && <StepProgress steps={steps} meta={meta} streaming />}
 
       {message &&
         (error ? (
@@ -101,7 +101,7 @@ export default function ChatMessage({
       {stopped && !streaming && <p className="mt-2 text-[11px] text-[#78716C] dark:text-[#A8A29E]">Stopped.</p>}
 
       {sources?.length > 0 && !streaming && (
-        <div className="mt-4">
+        <div className="mt-5 border-t border-[#E6E1D6] pt-3 dark:border-[#35322F]">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#78716C] dark:text-[#A8A29E]">
             Referenced sources ({sources.length})
           </p>
@@ -110,6 +110,12 @@ export default function ChatMessage({
               <SourceChip key={source.id} source={source} onOpen={onCite} />
             ))}
           </div>
+        </div>
+      )}
+
+      {!streaming && steps?.length > 0 && (
+        <div className="mt-3">
+          <StepProgress steps={steps} meta={meta} />
         </div>
       )}
 
