@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   FiAlertTriangle,
   FiBookOpen,
@@ -48,6 +48,15 @@ export default function NotebookView({ nid, data, theme, onHome }) {
   const scope = sources.selectedIds;
   const readyCount = sources.docs.filter((d) => d.status === "ready").length;
   const closeCite = useCallback(() => setCited(null), []);
+  const studioExpanded = studioWide && Boolean(studio.active || (studio.watching && studio.draft));
+  useEffect(() => {
+    if (!studioExpanded || cited) return undefined;
+    const exit = (event) => {
+      if (event.key === "Escape") setStudioWide(false);
+    };
+    window.addEventListener("keydown", exit);
+    return () => window.removeEventListener("keydown", exit);
+  }, [studioExpanded, cited]);
 
   const rename = async (next) => {
     const previous = title;
@@ -76,7 +85,7 @@ export default function NotebookView({ nid, data, theme, onHome }) {
   const cols = [
     sourcesOpen ? "300px" : "56px",
     "minmax(0, 1fr)",
-    studioOpen ? (studioWide ? "minmax(0, 1.5fr)" : "380px") : "56px",
+    studioOpen ? "380px" : "56px",
   ].join(" ");
 
   return (
@@ -99,7 +108,8 @@ export default function NotebookView({ nid, data, theme, onHome }) {
         </div>
       )}
 
-      <div className="notebook-layout grid min-h-0 flex-1 gap-3 p-2 pt-0 sm:p-3 sm:pt-0" style={{ "--notebook-cols": cols }}>
+      <div className="notebook-layout grid min-h-0 flex-1 gap-3 p-2 pt-0 sm:p-3 sm:pt-0"
+        data-studio-expanded={studioExpanded || undefined} style={{ "--notebook-cols": cols }}>
         <aside aria-label="Sources" className={`${tab === "sources" ? "block" : "hidden"} min-h-0 xl:block`}>
           {sourcesOpen ? (
             <LibraryPanel
@@ -178,14 +188,14 @@ export default function NotebookView({ nid, data, theme, onHome }) {
           </Panel>
         </main>
 
-        <aside aria-label="Studio" className={`${tab === "studio" ? "block" : "hidden"} min-h-0 xl:block`}>
+        <aside data-studio aria-label="Studio" className={`${tab === "studio" ? "block" : "hidden"} min-h-0 xl:block`}>
           {studioOpen ? (
             <StudioPanel
               studio={{ ...studio, generate: (kind, focus) => studio.generate(kind, scope, focus) }}
               readyCount={readyCount}
               scopeCount={scope.length}
               onCite={setCited}
-              wide={studioWide}
+              wide={studioExpanded}
               onWide={setStudioWide}
               onCollapse={() => {
                 setStudioWide(false);
@@ -198,7 +208,7 @@ export default function NotebookView({ nid, data, theme, onHome }) {
         </aside>
       </div>
 
-      <nav aria-label="Notebook panels" className="mobile-panel-nav flex shrink-0 gap-1 bg-[#F3EFEA] px-2 pt-1 xl:hidden dark:bg-[#0F0E0D]">
+      <nav aria-label="Notebook panels" hidden={studioExpanded} className={`${studioExpanded ? "hidden" : "mobile-panel-nav flex"} shrink-0 gap-1 bg-[#F3EFEA] px-2 pt-1 xl:hidden dark:bg-[#0F0E0D]`}>
         {TABS.map(({ id, label, icon: Icon }) => {
           const active = tab === id;
           return (

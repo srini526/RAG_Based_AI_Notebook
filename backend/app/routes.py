@@ -302,8 +302,9 @@ def make_blueprint(svc, limiter) -> Blueprint:
                     content["sources"] = ev.get("sources", [])
                 try:
                     ev = {**ev, "output": svc.repo.add_output(nid, kind, TITLES[kind], content)}
-                except Exception:
+                except Exception as exc:
                     log.exception("could not save Studio output")
+                    raise UserError("The output was created but couldn't be saved. Try again.") from exc
             yield ev
 
     @bp.post("/generate")

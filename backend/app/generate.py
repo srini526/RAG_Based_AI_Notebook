@@ -63,6 +63,13 @@ def _clean_cards(c: Flashcards) -> list[dict]:
             for x in c.cards[:20] if x.front.strip() and x.back.strip()]
 
 
+_STRUCTURED_TOOLS = {
+    "quiz": (Quiz, _clean_quiz),
+    "flashcards": (Flashcards, _clean_cards),
+    "mindmap": (MindMap, _clean_mindmap),
+}
+
+
 class Generator:
     def __init__(self, settings, chains: Chains) -> None:
         self._s = settings
@@ -78,12 +85,16 @@ class Generator:
         passages = [p for p in lib.chunks(doc_ids) if p.metadata.get("doc_id") in lib_docs]
         if not passages:
             raise UserError("Add a source first.")
+        yield {"step": {"id": "read", "label": "Reading your sources"}}
         focus = focus.strip()[:160]
         focused = []
         if focus:
-            focused = [d for d, _ in lib.search(focus, self._s.studio_focus_k, doc_ids)
-                       if d.metadata.get("doc_id") in lib_docs]
-        passages = focused or sample_evenly(passages, self._s.gen_context_chars)
+            try:
+                focused = [d for d, _ in lib.search(focus, self._s.studio_focus_k, doc_ids)
+                           if d.metadata.get("doc_id") in lib_docs]
+            except Exception as exc:
+                log.warning("Studio topic search unavailable (%s); using source passages", type(exc).__name__)
+        passages = sample_evenly(focused or passages, self._s.gen_context_chars)
         sources = build_sources(passages, lib_docs)
         titles = ", ".join(dict.fromkeys(s["title"] for s in sources))[:600]
         inputs = {
@@ -91,42 +102,45 @@ class Generator:
             "titles": f"{titles}\nRequested focus: {focus}" if focus else titles,
         }
 
-        yield {"step": {"id": "read", "label": "Reading your sources"}}
         yield {"step": {"id": kind, "label": STEP_LABELS[kind]}}
         meta = {"kind": kind}
 
-        if kind in MARKDOWN_KINDS:
-            parts: list[str] = []
-            for token in getattr(self._chains, kind).stream(inputs):
-                if token:
-                    parts.append(token)
-                    yield {"token": token}
-            yield {"done": True, "sources": cited_only("".join(parts), sources), "meta": meta}
-        elif kind == "quiz":
-            questions = _clean_quiz(self._structured(self._chains.quiz, inputs, Quiz))
-            if not questions:
-                raise UserError("Couldn't build a quiz this time. Please try again.")
-            yield {"quiz": {"questions": questions}}
-            yield {"done": True, "sources": [], "meta": meta}
-        elif kind == "flashcards":
-            cards = _clean_cards(self._structured(self._chains.flashcards, inputs, Flashcards))
-            if not cards:
-                raise UserError("Couldn't write flashcards this time. Please try again.")
-            yield {"flashcards": cards}
-            yield {"done": True, "sources": [], "meta": meta}
-        elif kind == "mindmap":
-            tree = _clean_mindmap(self._structured(self._chains.mindmap, inputs, MindMap))
-            if tree is None:
-                raise UserError("Couldn't build a mind map this time. Please try again.")
-            yield {"mindmap": tree}
-            yield {"done": True, "sources": [], "meta": meta}
-        else:
+        if kind == "questions":
             result = self._structured(self._chains.suggest, inputs, SuggestedQuestions)
             questions = [q.strip()[:160] for q in result.questions if q and q.strip()][:5]
             if not questions:
                 raise UserError("Couldn't think of questions this time. Please try again.")
             yield {"questions": questions}
             yield {"done": True, "sources": [], "meta": meta}
+            return
+
+        # Wait for a complete, usable artifact so a provider retry cannot mix two partial outputs.
+        for attempt in (1, 2):
+            try:
+                result = self._artifact(kind, inputs)
+            except UserError:
+                raise
+            except Exception as exc:
+                log.warning("Studio %s attempt %d failed (%s)", kind, attempt, type(exc).__name__)
+            else:
+                if result:
+                    log.info("Studio %s generation completed on attempt %d", kind, attempt)
+                    yield {"token": result} if kind in MARKDOWN_KINDS else {kind: result}
+                    cited = cited_only(result, sources) if kind in MARKDOWN_KINDS else []
+                    yield {"done": True, "sources": cited, "meta": meta}
+                    return
+                log.warning("Studio %s attempt %d returned no usable content", kind, attempt)
+            if attempt == 1:
+                yield {"step": {"id": "retry", "label": "Trying the model again"}}
+        raise UserError(f"Couldn't create a usable {TITLES[kind].lower()}. Try again or select fewer sources.")
+
+    def _artifact(self, kind: str, inputs: dict):
+        result = getattr(self._chains, kind).invoke(inputs)
+        if kind in MARKDOWN_KINDS:
+            return result.strip() if isinstance(result, str) else ""
+        model, clean = _STRUCTURED_TOOLS[kind]
+        artifact = clean(model.model_validate(result))
+        return {"questions": artifact} if kind == "quiz" and artifact else artifact
 
     # ----------------------------------------------------------- source guide
     def make_guide(self, name: str, passages: list[Document]) -> dict | None:

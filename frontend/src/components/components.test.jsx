@@ -157,6 +157,13 @@ describe("NotebookView", () => {
     expect(streamGenerate).toHaveBeenCalledWith(DATA.notebook.id, { kind: "quiz" }, expect.anything());
     await userEvent.click(await screen.findByRole("button", { name: "Open Quiz" })); // the new item lands in the list
     expect(await screen.findByText(/Pick one/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "x" }));
+    await userEvent.click(screen.getByRole("button", { name: "Expand output" }));
+    expect(screen.getByRole("complementary", { name: "Studio" }).parentElement.dataset.studioExpanded).toBe("true");
+    expect(screen.queryByRole("navigation", { name: "Notebook panels" })).toBeNull();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Expand output" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "x" }).disabled).toBe(true);
     await userEvent.click(screen.getByRole("button", { name: /back to studio/i }));
     expect(await screen.findByText("Saved outputs")).toBeTruthy();
   });
@@ -175,13 +182,30 @@ describe("NotebookView", () => {
         created_at: Date.now() / 1000, content: { focus: "Lexical scope", markdown: "## Key concepts" } });
     });
     view();
+    await userEvent.click(screen.getByRole("button", { name: "Customize Study guide" }));
     await userEvent.type(screen.getByLabelText(/focus topic/i), " Lexical scope ");
-    await userEvent.click(screen.getByRole("button", { name: /^study guide/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Generate", exact: true }));
     expect(streamGenerate).toHaveBeenCalledWith(DATA.notebook.id, { kind: "study_guide", focus: "Lexical scope" }, expect.anything());
     await userEvent.type(screen.getByRole("searchbox", { name: "Search saved outputs" }), "lexical");
     expect(screen.queryByRole("button", { name: "Open Briefing doc" })).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Open Study guide" }));
     expect(await screen.findByRole("heading", { name: "Key concepts" })).toBeTruthy();
+  });
+
+  it("shows a failed Studio job and retries with the same source scope and topic", async () => {
+    streamGenerate.mockImplementationOnce(async (_nid, _body, h) => h.onError(new Error("The model did not respond.")))
+      .mockImplementationOnce(async (_nid, _body, h) => h.onDone([], {}, { id: "o4", kind: "faq", title: "FAQ",
+        created_at: Date.now() / 1000, content: { focus: "Scope", markdown: "## About scope" } }));
+    view();
+    await userEvent.click(screen.getByRole("checkbox", { name: /ask only about notes.md/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Customize FAQ" }));
+    await userEvent.type(screen.getByLabelText(/focus topic/i), "Scope");
+    await userEvent.click(screen.getByRole("button", { name: "Generate", exact: true }));
+    expect(await screen.findByText("The model did not respond.")).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Retry generation" }));
+    expect(streamGenerate).toHaveBeenLastCalledWith(DATA.notebook.id,
+      { kind: "faq", doc_ids: ["d1"], focus: "Scope" }, expect.anything());
+    expect(await screen.findByRole("button", { name: "Open FAQ" })).toBeTruthy();
   });
 
   it("shows an error message and unlocks the input when generation fails", async () => {

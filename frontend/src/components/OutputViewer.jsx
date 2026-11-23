@@ -57,6 +57,7 @@ export default function OutputViewer({
   onBack,
   onDelete,
   onCancel,
+  onRetry,
   onCite,
 }) {
   const [copied, setCopied] = useState(false);
@@ -120,9 +121,10 @@ export default function OutputViewer({
           <button
             type="button"
             onClick={() => onWide(!wide)}
-            aria-label={wide ? "Shrink panel" : "Expand panel"}
-            title={wide ? "Shrink" : "Expand"}
-            className={`${ICON_BTN} hidden xl:inline-flex`}
+            aria-label={wide ? "Exit expanded view" : "Expand output"}
+            title={wide ? "Exit expanded view" : "Expand output"}
+            aria-pressed={wide}
+            className={ICON_BTN}
           >
             {wide ? <FiMinimize2 size={15} /> : <FiMaximize2 size={15} />}
           </button>
@@ -160,10 +162,14 @@ export default function OutputViewer({
           <div role="alert" className="rounded-2xl border border-red-300/60 bg-red-50 p-4 text-sm text-red-800 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-300">
             <p className="font-semibold">Generation failed</p>
             <p className="mt-1 text-xs leading-relaxed">{error}</p>
+            {onRetry && <button type="button" onClick={onRetry} className="mt-2 cursor-pointer font-semibold underline">Retry generation</button>}
           </div>
         )}
 
         {busy && !hasContent && <LoadingState title={title} step={step} />}
+        {!busy && !error && !hasContent && (
+          <p role="status" className="text-sm text-[#78716C] dark:text-[#A8A29E]">This saved output is empty. Go back to Studio and generate it again.</p>
+        )}
 
         {markdown && (
           <Suspense fallback={<div className="h-24 animate-pulse rounded-xl bg-[#F0ECE6] dark:bg-[#262421]" />}>

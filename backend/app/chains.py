@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 
 
 STUDIO_TOOLS = ("briefing", "study_guide", "faq", "timeline", "mindmap", "flashcards", "quiz")
+STUDIO_DOCUMENT_TOKENS = 3072  # Leave room for both reasoning and the document.
 
 
 class Analysis(BaseModel):
@@ -136,6 +137,7 @@ class Chains:
                 api_token=settings.cf_api_token,
                 model=settings.studio_llm_model,
                 temperature=0.1,
+                timeout=32,
             )
 
         self.studio_llm = studio_llm
@@ -207,7 +209,7 @@ class Chains:
                 build_studio(
                     kind,
                     lambda p=prompt: p
-                    | self.studio_llm
+                    | self.studio_llm.bind(max_tokens=STUDIO_DOCUMENT_TOKENS)
                     | StrOutputParser(),
                 ),
             )

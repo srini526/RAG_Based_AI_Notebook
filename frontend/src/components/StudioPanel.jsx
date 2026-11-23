@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { FiAlertCircle, FiArrowRight, FiChevronsRight, FiFolder, FiLayers, FiLoader, FiSearch, FiTrash2, FiX } from "react-icons/fi";
+import { FiAlertCircle, FiChevronsRight, FiEdit2, FiFolder, FiLayers, FiLoader, FiRefreshCw, FiSearch, FiTrash2, FiX } from "react-icons/fi";
 
 import OutputViewer from "./OutputViewer.jsx";
 import Panel from "./Panel.jsx";
@@ -12,24 +12,23 @@ const TOOL_GROUPS = [
 ];
 const FIELD = "h-10 w-full rounded-xl border border-[#E6E1D6] bg-white px-3 text-sm placeholder:text-[#78716C] dark:border-[#35322F] dark:bg-[#141312] dark:placeholder:text-[#A8A29E]";
 
-function Tile({ tool, disabled, onClick }) {
+function Tile({ tool, disabled, onClick, onCustomize }) {
   const Icon = tool.icon;
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`group flex min-h-21 cursor-pointer flex-col justify-between gap-2 rounded-xl p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-45 ${tool.tint}`}
-    >
-      <span className="flex w-full items-center justify-between">
+    <div className="relative min-w-0">
+      <button type="button" disabled={disabled} onClick={onClick}
+        className={`flex min-h-21 w-full cursor-pointer flex-col justify-between gap-2 rounded-xl p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-45 ${tool.tint}`}>
         <Icon size={17} aria-hidden="true" />
-        <FiArrowRight size={13} aria-hidden="true" className="opacity-60 transition group-hover:translate-x-0.5" />
-      </span>
-      <span>
-        <span className="block text-[13px] font-medium leading-tight">{tool.label}</span>
-        <span className="mt-0.5 block text-[11px] leading-tight opacity-70">{tool.description}</span>
-      </span>
-    </button>
+        <span>
+          <span className="block text-[13px] font-medium leading-tight">{tool.label}</span>
+          <span className="mt-0.5 block text-[11px] leading-tight opacity-70">{tool.description}</span>
+        </span>
+      </button>
+      <button type="button" disabled={disabled} onClick={onCustomize} aria-label={`Customize ${tool.label}`} title="Customize"
+        className={`${ICON_BTN} absolute right-1 top-1 disabled:opacity-40`}>
+        <FiEdit2 size={13} aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
@@ -82,7 +81,7 @@ function ItemRow({ output, onOpen, onDelete }) {
 }
 
 export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wide, onWide, onCollapse }) {
-  const [focus, setFocus] = useState("");
+  const [custom, setCustom] = useState(null);
   const [search, setSearch] = useState("");
   const saved = useRef(null);
   const { draft, active, outputs } = studio;
@@ -91,10 +90,15 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
   const visibleOutputs = outputs.filter((output) =>
     `${output.title} ${TOOL[output.kind]?.label || ""} ${output.content?.focus || ""}`.toLowerCase().includes(query),
   );
-  const start = (kind) => {
+  const start = (kind, focus = "") => {
+    setCustom(null);
     setSearch("");
     studio.generate(kind, focus);
     saved.current?.scrollIntoView({ block: "start" });
+  };
+  const retry = () => {
+    onWide?.(false);
+    studio.retry();
   };
 
   // A finished output, or the one being generated while the reader watches it.
@@ -116,8 +120,9 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
         wide={wide}
         onWide={onWide}
         onBack={goBack}
-        onCancel={studio.cancel}
-        onDelete={active ? () => studio.remove(active.id) : undefined}
+        onCancel={() => { onWide?.(false); studio.cancel(); }}
+        onRetry={draft?.error && !active && readyCount > 0 ? retry : undefined}
+        onDelete={active ? () => { onWide?.(false); studio.remove(active.id); } : undefined}
         onCite={onCite}
       />
     );
@@ -136,25 +141,35 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
     >
       <div className="space-y-5 px-4 pb-5">
         <section aria-label="Create study materials" className="space-y-4">
-          <div className="rounded-2xl border border-[#E6E1D6] bg-[#F3EFEA]/55 p-3 dark:border-[#35322F] dark:bg-[#22201E]">
-            <p className="mb-2.5 flex items-center gap-2 text-xs text-[#57534E] dark:text-[#D6D3D1]">
+          <div className="rounded-xl border border-[#E6E1D6] bg-[#F3EFEA]/55 px-3 py-2.5 dark:border-[#35322F] dark:bg-[#22201E]">
+            <p className="flex items-center gap-2 text-xs text-[#57534E] dark:text-[#D6D3D1]">
               <FiLayers size={14} aria-hidden="true" className="shrink-0 text-[#C85A32] dark:text-[#D97757]" />
               {readyCount === 0 ? "Add a source to create study materials" : scopeCount > 0
                 ? `${scopeCount} selected ${scopeCount === 1 ? "source" : "sources"}`
                 : `Using all ${readyCount} ready ${readyCount === 1 ? "source" : "sources"}`}
             </p>
-            <label htmlFor="studio-focus" className="mb-1.5 block text-xs font-medium">
-              Focus topic <span className="font-normal text-[#78716C] dark:text-[#A8A29E]">(optional)</span>
-            </label>
-            <input id="studio-focus" className={FIELD} maxLength={160} placeholder="e.g. causes of the French Revolution"
-              type="text" value={focus} onChange={(e) => setFocus(e.target.value)} />
           </div>
+          {custom && (
+            <form aria-label={`Customize ${TOOL[custom.kind].label}`} onSubmit={(event) => { event.preventDefault(); start(custom.kind, custom.focus); }}
+              className="space-y-2.5 rounded-xl border border-[#C85A32]/30 bg-[#F3EFEA]/60 p-3 dark:border-[#D97757]/35 dark:bg-[#22201E]">
+              <h3 className="text-sm font-semibold">Customize {TOOL[custom.kind].label.toLowerCase()}</h3>
+              <label htmlFor="studio-focus" className="block text-xs">Focus topic (optional)</label>
+              <input id="studio-focus" autoFocus className={FIELD} maxLength={160} placeholder="e.g. causes of the French Revolution"
+                type="text" value={custom.focus} onChange={(e) => setCustom({ ...custom, focus: e.target.value })} />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setCustom(null)} className="cursor-pointer rounded-lg px-3 py-2 text-xs">Cancel</button>
+                <button type="submit" disabled={!readyCount || studio.generating}
+                  className="cursor-pointer rounded-lg bg-[#C85A32] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Generate</button>
+              </div>
+            </form>
+          )}
           {TOOL_GROUPS.map(({ label, ids }) => (
             <div key={label}>
               <h3 className="mb-2 text-xs font-semibold text-[#57534E] dark:text-[#D6D3D1]">{label}</h3>
               <div className="grid grid-cols-2 gap-2">
                 {ids.map((id) => (
-                  <Tile key={id} tool={TOOL[id]} disabled={!readyCount || studio.generating} onClick={() => start(id)} />
+                  <Tile key={id} tool={TOOL[id]} disabled={!readyCount || studio.generating}
+                    onClick={() => start(id)} onCustomize={() => setCustom({ kind: id, focus: "" })} />
                 ))}
               </div>
             </div>
@@ -192,11 +207,16 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
                     <span className="block truncate text-[13px] font-medium text-[#1C1917] dark:text-[#F5F2EB]">
                       {draft.error ? `${TOOL[draft.kind]?.label} failed` : `Creating ${TOOL[draft.kind]?.label.toLowerCase()}…`}
                     </span>
-                    <span className="block truncate text-[11px] text-[#78716C] dark:text-[#A8A29E]">
+                    <span aria-live="polite" className="block text-[11px] text-[#78716C] dark:text-[#A8A29E]">
                       {draft.error || [lastStep || "Reading your sources", draft.focus].filter(Boolean).join(" · ")}
                     </span>
                   </span>
                 </button>
+                {draft.error && readyCount > 0 && (
+                  <button type="button" onClick={retry} aria-label="Retry generation" title="Retry generation" className={ICON_BTN}>
+                    <FiRefreshCw size={15} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={draft.error ? studio.dismiss : studio.cancel}
