@@ -147,7 +147,7 @@ class Repo:
 
     def rename_notebook(self, nid: str, title: str) -> None:
         with self.engine.begin() as c:
-            c.execute(update(notebooks).where(notebooks.c.id == nid).values(title=title))
+            c.execute(update(notebooks).where(notebooks.c.id == nid).values(title=title, updated_at=time.time()))
 
     def touch(self, nid: str) -> None:
         with self.engine.begin() as c:
@@ -225,25 +225,44 @@ class Repo:
         return out
 
     # -------------------------------------------------------------- messages
-    def add_messages(self, nid: str, rows: list[tuple[str, str, dict]]) -> None:
+    def add_messages(self, nid: str, rows: list[tuple[str, str, dict]]) -> int | None:
         now = time.time()
         with self.engine.begin() as c:
-            c.execute(insert(messages), [
-                {"notebook_id": nid, "role": role, "content": text, "extra": json.dumps(extra),
-                 "created_at": now + i * 1e-3} for i, (role, text, extra) in enumerate(rows)])
+            last_id = None
+            for i, (role, text, extra) in enumerate(rows):
+                result = c.execute(insert(messages).values(notebook_id=nid, role=role, content=text,
+                                   extra=json.dumps(extra), created_at=now + i * 1e-3))
+                last_id = result.inserted_primary_key[0]
             c.execute(update(notebooks).where(notebooks.c.id == nid).values(updated_at=now))
+        return last_id
+
+    def get_answer(self, nid: str, message_id: int) -> dict | None:
+        q = select(messages).where(messages.c.notebook_id == nid, messages.c.id == message_id,
+                                   messages.c.role == "bot")
+        with self.engine.connect() as c:
+            row = c.execute(q).first()
+        return self._message(row) if row else None
+
+    def replace_latest_answer(self, nid: str, message_id: int, text: str, extra: dict) -> bool:
+        latest = select(func.max(messages.c.id)).where(messages.c.notebook_id == nid).scalar_subquery()
+        with self.engine.begin() as c:
+            result = c.execute(update(messages).where(messages.c.notebook_id == nid, messages.c.role == "bot",
+                               messages.c.id == message_id, messages.c.id == latest)
+                               .values(content=text, extra=json.dumps(extra)))
+            if result.rowcount:
+                c.execute(update(notebooks).where(notebooks.c.id == nid).values(updated_at=time.time()))
+        return result.rowcount > 0
+
+    @staticmethod
+    def _message(row) -> dict:
+        return {**json.loads(row.extra or "{}"), "id": row.id, "sender": row.role, "message": row.content}
 
     def list_messages(self, nid: str, limit: int = 200) -> list[dict]:
         q = (select(messages).where(messages.c.notebook_id == nid)
              .order_by(messages.c.id.desc()).limit(limit))
         with self.engine.connect() as c:
             rows = list(reversed(c.execute(q).all()))
-        out = []
-        for r in rows:
-            item = {"sender": r.role, "message": r.content}
-            item.update(json.loads(r.extra or "{}"))
-            out.append(item)
-        return out
+        return [self._message(row) for row in rows]
 
     def clear_messages(self, nid: str) -> None:
         with self.engine.begin() as c:
@@ -255,11 +274,12 @@ class Repo:
                "content": json.dumps(content), "created_at": time.time()}
         with self.engine.begin() as c:
             c.execute(insert(outputs).values(**row))
-            old = [r.id for r in c.execute(
-                select(outputs.c.id).where(outputs.c.notebook_id == nid)
-                .order_by(outputs.c.created_at.desc()).offset(keep))]
-            if old:
-                c.execute(delete(outputs).where(outputs.c.id.in_(old)))
+            if kind != "note":
+                old = [r.id for r in c.execute(select(outputs.c.id)
+                    .where(outputs.c.notebook_id == nid, outputs.c.kind != "note")
+                    .order_by(outputs.c.created_at.desc()).offset(keep))]
+                if old:
+                    c.execute(delete(outputs).where(outputs.c.id.in_(old)))
             c.execute(update(notebooks).where(notebooks.c.id == nid).values(updated_at=row["created_at"]))
         return {"id": row["id"], "kind": kind, "title": row["title"], "created_at": row["created_at"],
                 "content": content}
@@ -269,6 +289,19 @@ class Repo:
         with self.engine.connect() as c:
             return [{"id": r.id, "kind": r.kind, "title": r.title, "created_at": r.created_at,
                      "content": json.loads(r.content)} for r in c.execute(q)]
+
+    def update_note(self, nid: str, output_id: str, title: str, markdown: str) -> dict | None:
+        target = (outputs.c.notebook_id == nid, outputs.c.id == output_id, outputs.c.kind == "note")
+        with self.engine.begin() as c:
+            row = c.execute(select(outputs).where(*target)).first()
+            if row is None:
+                return None
+            content = {**json.loads(row.content), "markdown": markdown}
+            result = c.execute(update(outputs).where(*target).values(title=title, content=json.dumps(content)))
+            if not result.rowcount:
+                return None
+            c.execute(update(notebooks).where(notebooks.c.id == nid).values(updated_at=time.time()))
+        return {"id": row.id, "kind": "note", "title": title, "created_at": row.created_at, "content": content}
 
     def delete_output(self, nid: str, output_id: str) -> bool:
         with self.engine.begin() as c:

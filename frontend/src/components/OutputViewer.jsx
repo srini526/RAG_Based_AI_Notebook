@@ -5,6 +5,7 @@ import {
   FiChevronDown,
   FiCopy,
   FiDownload,
+  FiEdit2,
   FiLoader,
   FiMaximize2,
   FiMinimize2,
@@ -58,6 +59,7 @@ export default function OutputViewer({
   onDelete,
   onCancel,
   onRetry,
+  onEdit,
   onCite,
 }) {
   const [copied, setCopied] = useState(false);
@@ -107,6 +109,11 @@ export default function OutputViewer({
       </button>
 
       <div className="flex items-center gap-0.5">
+        {onEdit && (
+          <button type="button" onClick={onEdit} aria-label="Edit note" title="Edit note" className={ICON_BTN}>
+            <FiEdit2 size={15} />
+          </button>
+        )}
         {markdown && !busy && (
           <>
             <button type="button" onClick={copy} aria-label="Copy as text" title="Copy" className={ICON_BTN}>

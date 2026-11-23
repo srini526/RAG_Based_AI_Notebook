@@ -38,7 +38,7 @@ function EmptyState({ hasReady, starters, onPick }) {
   );
 }
 
-export default function ChatWindow({ messages, loading, hasReady, starters, onPick, onRegenerate, onCite, outputIds = [], onOpenOutput }) {
+export default function ChatWindow({ messages, loading, hasReady, starters, onPick, onRegenerate, onCite, outputIds = [], onOpenOutput, onSaveAnswer }) {
   const scrollRef = useRef(null);
   const stickRef = useRef(true); // follow the stream only while the reader is at the bottom
 
@@ -78,8 +78,10 @@ export default function ChatWindow({ messages, loading, hasReady, starters, onPi
               meta={msg.meta}
               error={msg.error}
               stopped={msg.stopped}
+              retryError={msg.retryError}
               streaming={loading && index === messages.length - 1}
               onRegenerate={!loading && index === messages.length - 1 ? onRegenerate : undefined}
+              onSaveAnswer={msg.id && onSaveAnswer ? () => onSaveAnswer(msg.id) : undefined}
               onCite={onCite}
               outputExists={Boolean(msg.meta?.studio && outputIds.includes(msg.meta.studio.id))}
               onOpenOutput={onOpenOutput}

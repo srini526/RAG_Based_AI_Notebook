@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
-import { FiAlertCircle, FiChevronsRight, FiEdit2, FiFolder, FiLayers, FiLoader, FiRefreshCw, FiSearch, FiTrash2, FiX } from "react-icons/fi";
+import { FiAlertCircle, FiChevronsRight, FiEdit2, FiFolder, FiLayers, FiLoader, FiPlus, FiRefreshCw, FiSearch, FiTrash2, FiX } from "react-icons/fi";
 
+import NoteEditor from "./NoteEditor.jsx";
 import OutputViewer from "./OutputViewer.jsx";
 import Panel from "./Panel.jsx";
 import { ago, TOOL } from "../hooks/Studiotools.js";
-import { ICON_BTN } from "../hooks/Ui.js";
+import { ICON_BTN, PILL_BTN } from "../hooks/Ui.js";
 
 const TOOL_GROUPS = [
   { label: "Review the material", ids: ["briefing", "mindmap", "timeline", "faq"] },
@@ -83,6 +84,7 @@ function ItemRow({ output, onOpen, onDelete }) {
 export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wide, onWide, onCollapse }) {
   const [custom, setCustom] = useState(null);
   const [search, setSearch] = useState("");
+  const [editor, setEditor] = useState(null);
   const saved = useRef(null);
   const { draft, active, outputs } = studio;
   const lastStep = draft?.steps?.[draft.steps.length - 1]?.label;
@@ -100,6 +102,17 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
     onWide?.(false);
     studio.retry();
   };
+
+  if (editor) {
+    return <NoteEditor key={editor.id || "new"} note={editor.id ? editor : null} onCancel={() => setEditor(null)}
+      onSave={async (data, id) => {
+        const output = await studio.saveNote(data, id);
+        setEditor(null);
+        setSearch("");
+        studio.close();
+        studio.open(output.id);
+      }} />;
+  }
 
   // A finished output, or the one being generated while the reader watches it.
   if (active || (draft && studio.watching)) {
@@ -122,6 +135,7 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
         onBack={goBack}
         onCancel={() => { onWide?.(false); studio.cancel(); }}
         onRetry={draft?.error && !active && readyCount > 0 ? retry : undefined}
+        onEdit={active?.kind === "note" ? () => setEditor(active) : undefined}
         onDelete={active ? () => { onWide?.(false); studio.remove(active.id); } : undefined}
         onCite={onCite}
       />
@@ -177,7 +191,12 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
         </section>
 
         <section ref={saved} aria-labelledby="studio-saved" className="border-t border-[#E6E1D6] pt-4 dark:border-[#35322F]">
-          <h3 id="studio-saved" className="mb-2 text-sm font-semibold">Saved outputs</h3>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 id="studio-saved" className="text-sm font-semibold">Saved outputs</h3>
+            <button type="button" onClick={() => setEditor({})} className={PILL_BTN}>
+              <FiPlus size={14} /> New note
+            </button>
+          </div>
           {outputs.length > 0 && (
             <label className="relative mb-2 block">
               <span className="sr-only">Search saved outputs</span>
@@ -238,7 +257,7 @@ export default function StudioPanel({ studio, readyCount, scopeCount, onCite, wi
           {outputs.length === 0 && !draft && (
             <div className="flex items-center gap-2 rounded-xl border border-dashed border-[#D6CFC2] px-3 py-4 dark:border-[#35322F]">
               <FiFolder className="shrink-0 text-[#A8A29E]" size={17} aria-hidden="true" />
-              <p className="text-xs text-[#78716C] dark:text-[#A8A29E]">Choose a tool above to create your first output.</p>
+              <p className="text-xs text-[#78716C] dark:text-[#A8A29E]">Create a note or choose a study tool above.</p>
             </div>
           )}
         </section>

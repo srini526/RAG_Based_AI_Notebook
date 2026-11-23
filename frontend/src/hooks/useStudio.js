@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { deleteOutput, streamGenerate } from "../services/api";
+import { createNote, deleteOutput, streamGenerate, updateNote } from "../services/api";
 
 const STUDIO_TIMEOUT_MS = 95_000;
 
@@ -83,6 +83,19 @@ export default function useStudio(nid, initialOutputs) {
     setActiveId((a) => (a === id ? null : a));
   };
 
+  const addOutput = (output) => setOutputs((items) => {
+    if (items.some((item) => item.id === output.id)) {
+      return items.map((item) => item.id === output.id ? output : item);
+    }
+    return [output, ...items];
+  });
+
+  const saveNote = async (data, id) => {
+    const output = id ? await updateNote(nid, id, data) : await createNote(nid, data);
+    addOutput(output);
+    return output;
+  };
+
   return {
     outputs,
     active: outputs.find((o) => o.id === activeId) || null,
@@ -92,7 +105,8 @@ export default function useStudio(nid, initialOutputs) {
       watch(false);
     },
     dismiss: () => setDraft(null), // clear a failed generation
-    addOutput: (output) => setOutputs((o) => [output, ...o.filter((x) => x.id !== output.id)]), // made from chat
+    addOutput,
+    saveNote,
     watching,
     watch,
     draft,

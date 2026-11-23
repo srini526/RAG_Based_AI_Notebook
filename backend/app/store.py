@@ -94,22 +94,27 @@ class Library:
 
     def remove_doc(self, doc_id: str) -> bool:
         with self.lock:
-            if self.docs.pop(doc_id, None) is None:
+            if doc_id not in self.docs:
                 return False
+            if self.repo:
+                self.repo.delete_source(doc_id)
+            self.docs.pop(doc_id)
             ids = self._chunk_ids.pop(doc_id, [])
             if ids:
                 self.index.delete(ids)
-            if self.repo:
-                self.repo.delete_source(doc_id)
             return True
 
     def clear(self) -> None:
         with self.lock:
+            if self.repo:
+                self.repo.clear_sources(self.nid)
             self.docs.clear()
             self._chunk_ids.clear()
             self.index.delete(None)
-            if self.repo:
-                self.repo.clear_sources(self.nid)
+
+    def public_docs(self) -> list[dict]:
+        with self.lock:
+            return [doc.public() for doc in self.docs.values()]
 
     def chunks(self, doc_ids: set[str] | None = None) -> list[Document]:
         """Passages of all ready documents (optionally only `doc_ids`), in reading order."""
@@ -125,10 +130,12 @@ class Library:
             return out
 
     def ready_count(self) -> int:
-        return sum(1 for d in self.docs.values() if d.status == "ready")
+        with self.lock:
+            return sum(1 for d in self.docs.values() if d.status == "ready")
 
     def busy(self) -> bool:
-        return any(d.status in ("queued", "processing") for d in self.docs.values())
+        with self.lock:
+            return any(d.status in ("queued", "processing") for d in self.docs.values())
 
     def chunk_total(self) -> int:
         return len(self.index)

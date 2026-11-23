@@ -173,6 +173,7 @@ export default function NotebookView({ nid, data, theme, onHome }) {
               onCite={setCited}
               outputIds={studio.outputs.map((o) => o.id)}
               onOpenOutput={openOutput}
+              onSaveAnswer={(messageId) => studio.saveNote({ message_id: messageId })}
             />
             <ChatInput
               onSend={(q) => chat.sendMessage(q, scope)}

@@ -49,7 +49,7 @@ export default function App() {
   const { notebookId, open } = useRoute();
   const theme = useTheme();
 
-  if (notebookId) return <NotebookPage nid={notebookId} theme={theme} onHome={() => open(null)} />;
+  if (notebookId) return <NotebookPage key={notebookId} nid={notebookId} theme={theme} onHome={() => open(null)} />;
   return (
     <div className="flex h-dvh flex-col bg-[#F3EFEA] text-[#1C1917] transition-colors duration-200 dark:bg-[#0F0E0D] dark:text-[#F5F2EB]">
       <Header theme={theme} />

@@ -13,6 +13,8 @@ export default function useSources(nid, initialDocs) {
   const [serverDown, setServerDown] = useState(false);
   const [selected, setSelected] = useState([]); // source ids the user wants to ask about
   const nextUploadId = useRef(0);
+  const libraryRevision = useRef(0);
+  const refreshing = useRef(false);
 
   const handleError = useCallback((err) => {
     if (err.status === undefined) setServerDown(true);
@@ -20,11 +22,18 @@ export default function useSources(nid, initialDocs) {
   }, []);
 
   const refresh = useCallback(async () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
+    const revision = libraryRevision.current;
     try {
-      setDocs(await listLibrary(nid));
+      const library = await listLibrary(nid);
+      if (revision !== libraryRevision.current) return;
+      setDocs(library);
       setServerDown(false);
     } catch (err) {
-      handleError(err);
+      if (revision === libraryRevision.current) handleError(err);
+    } finally {
+      refreshing.current = false;
     }
   }, [nid, handleError]);
 
@@ -51,7 +60,8 @@ export default function useSources(nid, initialDocs) {
           const doc = await uploadFile(nid, file, (progress) =>
             setUploads((u) => u.map((x) => (x.id === id ? { ...x, progress } : x)))
           );
-          setDocs((d) => [...d, doc]);
+          libraryRevision.current++;
+          setDocs((d) => d.some((item) => item.id === doc.id) ? d : [...d, doc]);
         } catch (err) {
           handleError(err);
         } finally {
@@ -64,22 +74,18 @@ export default function useSources(nid, initialDocs) {
 
   const addLink = useCallback(
     async (url) => {
-      try {
-        const { document } = await addUrl(nid, url);
-        setDocs((d) => [...d, document]);
-        return true;
-      } catch (err) {
-        handleError(err);
-        return false;
-      }
+      const { document } = await addUrl(nid, url);
+      libraryRevision.current++;
+      setDocs((d) => d.some((item) => item.id === document.id) ? d : [...d, document]);
     },
-    [nid, handleError]
+    [nid]
   );
 
   const remove = useCallback(
     async (id) => {
       try {
         await deleteDoc(nid, id);
+        libraryRevision.current++;
         setDocs((d) => d.filter((x) => x.id !== id));
       } catch (err) {
         handleError(err);
@@ -91,6 +97,7 @@ export default function useSources(nid, initialDocs) {
   const clear = useCallback(async () => {
     try {
       await clearLibrary(nid);
+      libraryRevision.current++;
       setDocs([]);
     } catch (err) {
       handleError(err);

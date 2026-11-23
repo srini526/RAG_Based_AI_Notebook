@@ -11,7 +11,10 @@ export const TOOLS = [
   { id: "quiz", label: "Quiz", short: "Quiz", description: "Check your knowledge", icon: FiCheckSquare, tint: "bg-rose-50 text-rose-800 hover:bg-rose-100 dark:bg-rose-400/10 dark:text-rose-200 dark:hover:bg-rose-400/15" },
 ];
 
-export const TOOL = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
+export const TOOL = {
+  ...Object.fromEntries(TOOLS.map((t) => [t.id, t])),
+  note: { label: "Note", icon: FiFileText, tint: "bg-stone-100 text-stone-800 dark:bg-stone-400/10 dark:text-stone-200" },
+};
 
 export const ago = (ts) => {
   const minutes = Math.round((Date.now() / 1000 - ts) / 60);

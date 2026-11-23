@@ -19,7 +19,7 @@ const PROSE = [
   "prose-table:my-0 prose-th:bg-[#F3EFEA] prose-th:px-3 prose-th:py-2 dark:prose-th:bg-[#24221F]",
   "prose-td:px-3 prose-td:py-2",
 ].join(" ");
-const CITE = /\[S(\d+)\]/g;
+const CITE = /\[S[0-9]+\]|【S[0-9]+】/g;
 const CHIP =
   "mx-0.5 inline-flex h-4.5 min-w-4.5 cursor-pointer items-center justify-center rounded-md bg-[#C85A32]/12 px-1 align-super text-[10px] font-semibold text-[#C85A32] no-underline transition hover:bg-[#C85A32]/25 dark:bg-[#D97757]/15 dark:text-[#D97757]";
 
@@ -35,8 +35,8 @@ function citeMarkdown({ byId }) {
         const parts = [];
         let start = 0;
         for (const match of child.value.matchAll(CITE)) {
-          const [, number] = match;
-          const id = `S${number}`;
+          const id = match[0].slice(1, -1);
+          const number = id.slice(1);
           if (match.index > start) parts.push({ type: "text", value: child.value.slice(start, match.index) });
           if (Object.hasOwn(byId, id)) {
             parts.push({ type: "link", url: `cite:${id}`, children: [{ type: "text", value: number }] });

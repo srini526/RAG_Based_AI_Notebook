@@ -9,6 +9,7 @@ import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from .errors import UserError
 from .ingest_graph import IngestContext, build_ingest_graph
 from .ocr import IMAGE_EXTENSIONS
 from .security import assert_public_url
@@ -27,6 +28,16 @@ EXT_KIND = {
     **dict.fromkeys(IMAGE_EXTENSIONS, "image"),
 }
 ALLOWED_EXTENSIONS = frozenset(EXT_KIND)
+
+
+def validate_source_url(url: str) -> str | None:
+    try:
+        video_id = extract_video_id(url)
+    except ValueError as exc:
+        raise UserError("That doesn't look like a valid link.") from exc
+    if video_id is None:
+        assert_public_url(url)
+    return video_id
 
 
 def sweep_stale_workdirs(max_age_seconds: int = 3600) -> None:
@@ -52,13 +63,11 @@ class IngestManager:
         self._pool.submit(self._run, lib, doc, {"kind": kind, "ext": ext, "path": path}, workdir)
         return doc
 
-    def submit_url(self, lib: Library, url: str, workdir: str) -> LibraryDoc:
-        vid = extract_video_id(url)
+    def submit_url(self, lib: Library, url: str, workdir: str, vid: str | None) -> LibraryDoc:
         if vid:
             doc = lib.new_doc(f"YouTube {vid}", "youtube", source=url, video_id=vid)
             state = {"kind": "youtube", "url": url}
         else:
-            assert_public_url(url)  # fail fast, before queueing
             doc = lib.new_doc(url[:80], "web", source=url)
             state = {"kind": "web", "url": url}
         self._pool.submit(self._run, lib, doc, state, workdir)

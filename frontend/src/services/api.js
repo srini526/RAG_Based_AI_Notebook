@@ -78,6 +78,8 @@ export const deleteDoc = (nid, id) => request(`/api/library/${id}`, { nid, metho
 export const clearLibrary = (nid) => request("/api/library", { nid, method: "DELETE" });
 export const clearChat = (nid) => request("/api/chat", { nid, method: "DELETE" });
 export const deleteOutput = (nid, id) => request(`/api/outputs/${id}`, { nid, method: "DELETE" });
+export const createNote = (nid, note) => request("/api/notes", { nid, method: "POST", json: note }).then((data) => data.output);
+export const updateNote = (nid, id, note) => request(`/api/notes/${id}`, { nid, method: "PATCH", json: note }).then((data) => data.output);
 
 /** Upload with progress (fetch cannot report upload progress, so this uses XHR). */
 export function uploadFile(nid, file, onProgress) {

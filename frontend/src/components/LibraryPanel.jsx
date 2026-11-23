@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   FiAlertCircle,
   FiChevronsLeft,
@@ -145,6 +145,7 @@ export default function LibraryPanel({
   onCollapse,
 }) {
   const [adding, setAdding] = useState(false);
+  const closeAdd = useCallback(() => setAdding(false), []);
   const empty = docs.length === 0 && uploads.length === 0;
   const atLimit = docs.length >= config.max_docs;
 
@@ -242,7 +243,7 @@ export default function LibraryPanel({
           onFiles={onFiles}
           onLink={onLink}
           onSample={onSample}
-          onClose={() => setAdding(false)}
+          onClose={closeAdd}
         />
       )}
     </Panel>

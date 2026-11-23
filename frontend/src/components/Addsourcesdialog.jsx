@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { FiFileText, FiGlobe, FiLink, FiUploadCloud, FiX, FiYoutube } from "react-icons/fi";
 
-import { ICON_BTN, PILL_BTN } from "../hooks/Ui.js";
+import { ICON_BTN, PILL_BTN, PRIMARY_BTN } from "../hooks/Ui.js";
+
+const FIELD = "w-full rounded-xl border border-[#D6CFC2] bg-white px-3 py-2 text-sm dark:border-[#35322F] dark:bg-[#141312]";
 
 /** NotebookLM-style "Add sources" dialog: drop files or paste a link. */
 export default function AddSourcesDialog({ config, showSample, onFiles, onLink, onSample, onClose }) {
@@ -10,6 +12,11 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
   const [dragging, setDragging] = useState(false);
   const [url, setUrl] = useState("");
   const [adding, setAdding] = useState(false);
+  const [linkError, setLinkError] = useState("");
+  const [pasting, setPasting] = useState(false);
+  const [textTitle, setTextTitle] = useState("");
+  const [text, setText] = useState("");
+  const [textError, setTextError] = useState("");
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -21,15 +28,33 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
   const submitLink = async () => {
     if (!url.trim() || adding) return;
     setAdding(true);
-    const ok = await onLink(url.trim());
-    setAdding(false);
-    if (ok) onClose();
+    setLinkError("");
+    try {
+      await onLink(url.trim());
+      onClose();
+    } catch (err) {
+      setLinkError(err?.message || "Couldn't add the link. Try again.");
+    } finally {
+      setAdding(false);
+    }
   };
 
   const takeFiles = (files) => {
     if (!files?.length) return;
     onFiles(files);
     onClose();
+  };
+
+  const submitText = (event) => {
+    event.preventDefault();
+    if (!text.trim()) return;
+    const title = textTitle.trim().replace(/[\\/]/g, "_") || "Pasted text";
+    const file = new File([text], `${title}.txt`, { type: "text/plain" });
+    if (file.size > Math.min(config.max_upload_mb, 5) * 1024 * 1024) {
+      setTextError("This text is too large. Split it into smaller sources.");
+      return;
+    }
+    takeFiles([file]);
   };
 
   return (
@@ -42,7 +67,7 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
         aria-modal="true"
         aria-label="Add sources"
         onClick={(e) => e.stopPropagation()}
-        className="fade-up w-full max-w-xl rounded-t-3xl border border-[#E6E1D6] bg-[#FAF8F5] p-5 shadow-xl sm:rounded-3xl sm:p-6 dark:border-[#2A2826] dark:bg-[#1C1B19]"
+        className="fade-up max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl border border-[#E6E1D6] bg-[#FAF8F5] p-5 shadow-xl sm:rounded-3xl sm:p-6 dark:border-[#2A2826] dark:bg-[#1C1B19]"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -56,11 +81,36 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
           </button>
         </div>
 
+        <div className="mt-4 flex gap-2" aria-label="Source input method">
+          <button type="button" className={PILL_BTN} aria-pressed={!pasting} onClick={() => setPasting(false)}>File or link</button>
+          <button type="button" className={PILL_BTN} aria-pressed={pasting} onClick={() => setPasting(true)}>Paste text</button>
+        </div>
+
+        {pasting ? (
+          <form onSubmit={submitText} className="mt-4 space-y-3">
+            <label className="block space-y-1 text-sm"><span>Source title (optional)</span>
+              <input className={FIELD} value={textTitle} maxLength={100} placeholder="Pasted text"
+                onChange={(event) => setTextTitle(event.target.value)} />
+            </label>
+            <label className="block space-y-1 text-sm"><span>Source text</span>
+              <textarea className={`${FIELD} min-h-40 resize-y leading-relaxed`} value={text} required
+                onChange={(event) => { setText(event.target.value); setTextError(""); }} />
+            </label>
+            {textError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{textError}</p>}
+            <button type="submit" className={PRIMARY_BTN} disabled={!text.trim()}>Add text source</button>
+          </form>
+        ) : <>
+
         <div
           role="button"
           tabIndex={0}
           onClick={() => fileInput.current?.click()}
-          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileInput.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInput.current?.click();
+            }
+          }}
           onDragOver={(e) => {
             e.preventDefault();
             setDragging(true);
@@ -103,7 +153,7 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
             <FiLink size={14} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#78716C]" />
             <input
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => { setUrl(e.target.value); setLinkError(""); }}
               onKeyDown={(e) => e.key === "Enter" && submitLink()}
               placeholder="Paste a YouTube or website link"
               aria-label="Link to add"
@@ -119,6 +169,7 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
             {adding ? "…" : "Add"}
           </button>
         </div>
+        {linkError && <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">{linkError}</p>}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-[#78716C] dark:text-[#A8A29E]">
           <span className="inline-flex items-center gap-3">
@@ -139,6 +190,7 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
             </button>
           )}
         </div>
+        </>}
       </div>
     </div>
   );
