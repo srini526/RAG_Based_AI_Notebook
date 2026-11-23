@@ -23,7 +23,7 @@ from .faiss_store import FaissStore
 class LibraryDoc:
     id: str
     name: str
-    kind: str  # pdf | docx | pptx | text | audio | video | youtube | web
+    kind: str  # pdf | docx | pptx | text | image | audio | video | youtube | web
     source: str = ""  # original URL, if any
     status: str = "queued"  # queued | processing | ready | error
     message: str = ""

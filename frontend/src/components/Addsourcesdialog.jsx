@@ -82,7 +82,8 @@ export default function AddSourcesDialog({ config, showSample, onFiles, onLink, 
           </span>
           <p className="mt-3 text-sm font-medium text-[#1C1917] dark:text-[#F5F2EB]">Drop files here or click to upload</p>
           <p className="mt-1 text-xs text-[#78716C] dark:text-[#A8A29E]">
-            PDF, Word, Slides, TXT/MD, audio &amp; video · up to {config.max_upload_mb} MB
+            PDF, Word, Slides, TXT/MD{config.allowed_extensions.includes("png") && ", images"}, audio &amp; video
+            {" · up to "}{config.max_upload_mb} MB
           </p>
           <input
             ref={fileInput}

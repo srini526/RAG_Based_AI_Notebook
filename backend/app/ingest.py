@@ -10,6 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from .ingest_graph import IngestContext, build_ingest_graph
+from .ocr import IMAGE_EXTENSIONS
 from .security import assert_public_url
 from .store import Library, LibraryDoc
 from .youtube import extract_video_id
@@ -23,6 +24,7 @@ EXT_KIND = {
     "ogg": "audio", "flac": "audio", "mpga": "audio",
     "mp4": "video", "mkv": "video", "mov": "video", "webm": "video",
     "avi": "video", "m4v": "video", "mpeg": "video", "mpg": "video",
+    **dict.fromkeys(IMAGE_EXTENSIONS, "image"),
 }
 ALLOWED_EXTENSIONS = frozenset(EXT_KIND)
 

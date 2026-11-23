@@ -5,6 +5,7 @@ import re
 import zipfile
 
 from .errors import UserError
+from .ocr import image_text, pdf_ocr_available, pdf_page_texts
 
 MAX_PDF_PAGES = 500
 MAX_TEXT_BYTES = 5 * 1024 * 1024
@@ -28,7 +29,7 @@ def _check_zip(path: str, label: str) -> None:
         raise UserError(f"This {label} is too large once unpacked.")
 
 
-def parse_pdf(src) -> list[tuple[str, dict]]:
+def parse_pdf(src, progress=None) -> list[tuple[str, dict]]:
     from pypdf import PdfReader
 
     try:
@@ -44,19 +45,34 @@ def parse_pdf(src) -> list[tuple[str, dict]]:
             raise UserError("This PDF is password protected.")
     if len(reader.pages) > MAX_PDF_PAGES:
         raise UserError(f"PDF has too many pages (limit {MAX_PDF_PAGES}).")
-    units = []
+    texts = {}
+    scanned = []
     for i, page in enumerate(reader.pages, 1):
         try:
             text = _clean(page.extract_text() or "")
         except Exception:
             text = ""
         if text:
-            units.append((text, {"kind": "page", "page": i}))
-    if not units:
-        raise UserError(
-            "No readable text found. Scanned PDFs need OCR, which isn't supported yet."
-        )
-    return units
+            texts[i] = text
+        else:
+            scanned.append(i)
+    if scanned:
+        if pdf_ocr_available():
+            for i, raw in pdf_page_texts(src, scanned, progress):
+                if text := _clean(raw):
+                    texts[i] = text
+        elif not texts:
+            raise UserError("Scanned PDFs require OCR (Tesseract and Poppler).")
+    if not texts:
+        raise UserError("OCR found no readable text in this PDF.")
+    return [(texts[i], {"kind": "page", "page": i}) for i in sorted(texts)]
+
+
+def parse_image(path: str, extension: str) -> list[tuple[str, dict]]:
+    text = _clean(image_text(path, extension))
+    if not text:
+        raise UserError("OCR found no readable text in this image.")
+    return [(text, {"kind": "image"})]
 
 
 def parse_docx(path: str) -> list[tuple[str, dict]]:

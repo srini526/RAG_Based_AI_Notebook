@@ -56,7 +56,8 @@ The chat interface can also recognize requests such as “make me a quiz on clos
 
 | Source type | File extensions or URL | Processing |
 |---|---|---|
-| PDF | .pdf or a public PDF URL | Extract text and retain page numbers |
+| PDF | .pdf or a public PDF URL | Use embedded text or OCR scanned pages, retaining page numbers |
+| Image | .jpg, .jpeg, .png, .webp | OCR printed English text from still images up to 16 megapixels |
 | Word | .docx | Extract headings, paragraphs, and tables |
 | PowerPoint | .pptx | Extract slide text, tables, and speaker notes |
 | Text | .txt | Read text content |
@@ -366,6 +367,8 @@ pip install -r requirements-dev.txt
 ~~~
 
 Install FFmpeg separately using your operating system's package manager, then confirm that both ffmpeg and ffprobe are on PATH.
+
+For image and scanned PDF OCR, install Tesseract with English language data and Poppler. Confirm that `tesseract` and `pdftoppm` are on PATH. The backend Docker image includes both.
 
 Copy the environment template:
 

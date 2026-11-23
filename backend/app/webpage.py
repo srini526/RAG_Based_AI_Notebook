@@ -44,12 +44,12 @@ def fetch(url: str) -> tuple[bytes, str, str, str | None]:
     raise UserError("Too many redirects.")
 
 
-def extract(url: str) -> tuple[str, list[tuple[str, dict]]]:
+def extract(url: str, progress=None) -> tuple[str, list[tuple[str, dict]]]:
     """Return (title, units)."""
     content, ctype, final_url, encoding = fetch(url)
     host = urlparse(final_url).hostname or "web page"
     if ctype == "application/pdf":
-        return host, parse_pdf(io.BytesIO(content))
+        return host, parse_pdf(io.BytesIO(content), progress)
     if ctype and not (ctype.startswith("text/") or "html" in ctype or "xml" in ctype):
         raise UserError("That link isn't a web page or PDF.")
     import trafilatura
