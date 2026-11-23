@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from "react";
-import { FiCheck, FiCopy, FiRefreshCw } from "react-icons/fi";
+import { FiBookmark, FiCheck, FiCopy, FiRefreshCw } from "react-icons/fi";
 
 import { SourceChip } from "./SourceCard.jsx";
 import { TOOL } from "../hooks/Studiotools.js";
@@ -9,6 +9,32 @@ const Markdown = lazy(() => import("./Markdown.jsx"));
 
 const ACTION =
   "inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-[#78716C] transition hover:bg-[#EAE4DC]/70 hover:text-[#1C1917] dark:text-[#A8A29E] dark:hover:bg-[#22201E] dark:hover:text-[#F5F2EB] cursor-pointer";
+
+function SaveAnswer({ onSave }) {
+  const [state, setState] = useState("idle");
+  const [error, setError] = useState("");
+  const save = async () => {
+    setState("saving");
+    setError("");
+    try {
+      await onSave();
+      setState("saved");
+    } catch (err) {
+      setError(err?.message || "Couldn't save the answer. Try again.");
+      setState("idle");
+    }
+  };
+
+  return (
+    <>
+      <button type="button" className={ACTION} onClick={save} disabled={state !== "idle"}>
+        {state === "saved" ? <FiCheck size={12} /> : <FiBookmark size={12} />}
+        {state === "saving" ? "Saving…" : state === "saved" ? "Saved to Studio" : "Save to Studio"}
+      </button>
+      {error && <span role="alert" className="text-xs text-red-700 dark:text-red-300">{error}</span>}
+    </>
+  );
+}
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
@@ -61,8 +87,10 @@ export default function ChatMessage({
   meta,
   error,
   stopped,
+  retryError,
   streaming,
   onRegenerate,
+  onSaveAnswer,
   onCite,
   outputExists,
   onOpenOutput,
@@ -99,6 +127,7 @@ export default function ChatMessage({
       )}
 
       {stopped && !streaming && <p className="mt-2 text-[11px] text-[#78716C] dark:text-[#A8A29E]">Stopped.</p>}
+      {retryError && <p role="alert" className="mt-2 text-sm text-red-700 dark:text-red-300">{retryError}</p>}
 
       {sources?.length > 0 && !streaming && (
         <div className="mt-5 border-t border-[#E6E1D6] pt-3 dark:border-[#35322F]">
@@ -119,9 +148,10 @@ export default function ChatMessage({
         </div>
       )}
 
-      {showActions && (
-        <div className="mt-3 -ml-2 flex items-center gap-1">
-          {message && <CopyButton text={message} />}
+      {!streaming && (showActions || onRegenerate) && (
+        <div className="mt-3 -ml-2 flex flex-wrap items-center gap-1">
+          {showActions && <CopyButton text={message} />}
+          {showActions && onSaveAnswer && !stopped && <SaveAnswer onSave={onSaveAnswer} />}
           {onRegenerate && (
             <button type="button" onClick={onRegenerate} className={ACTION}>
               <FiRefreshCw size={12} />

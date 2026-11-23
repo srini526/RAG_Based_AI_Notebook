@@ -78,6 +78,36 @@ def test_output_can_be_deleted(client, sid):
     assert client.delete(f"/api/outputs/{out['id']}", headers=H(sid)).status_code == 404
 
 
+def test_note_can_be_created_edited_and_reopened(client, sid):
+    created = client.post("/api/notes", headers=H(sid), json={"markdown": "# Outline"})
+    assert created.status_code == 201
+    note = created.get_json()["output"]
+    assert note["kind"] == "note" and note["title"] == "Untitled note"
+    path = f"/api/notes/{note['id']}"
+    body = {"title": "Revision notes", "markdown": "**Lexical scope**"}
+    other = new_notebook(client)
+    assert client.patch(path, headers=H(other), json=body).status_code == 404
+    edited = client.patch(path, headers=H(sid), json=body).get_json()["output"]
+    assert edited["title"] == body["title"] and edited["content"]["markdown"] == body["markdown"]
+    assert client.get("/api/notebook", headers=H(sid)).get_json()["outputs"] == [edited]
+
+
+def test_note_saved_from_chat_keeps_its_citations(client, sid, repo):
+    add_note(client, sid)
+    answer = client.post("/api/chat", headers=H(sid), json={"question": "What is a closure?"}).get_json()
+    assert answer["sources"]
+    body = {"message_id": answer["meta"]["message_id"]}
+    assert client.post("/api/notes", headers=H(new_notebook(client)), json=body).status_code == 404
+    note = client.post("/api/notes", headers=H(sid), json=body).get_json()["output"]
+    assert note["content"] == {"markdown": answer["answer"], "sources": answer["sources"]}
+    edited = client.patch(f"/api/notes/{note['id']}", headers=H(sid),
+                          json={"title": "Summary", "markdown": "Revised [S1]"}).get_json()["output"]
+    assert edited["content"]["sources"] == answer["sources"]
+    for i in range(35):
+        repo.add_output(sid, "briefing", f"Briefing {i}", {"markdown": "Generated"}, keep=2)
+    assert {output["id"] for output in client.get("/api/notebook", headers=H(sid)).get_json()["outputs"]} >= {note["id"]}
+
+
 def test_generate_validation(client, sid):
     assert generate(client, sid, "poem").get_json()["error"]["code"] == "bad_kind"
     assert generate(client, sid, "briefing").get_json()["error"]["code"] == "empty_library"
@@ -153,6 +183,21 @@ def test_chat_can_be_limited_to_selected_documents(client, sid):
     assert {s["title"] for s in r.get_json()["sources"]} == {"a.md"}
 
 
+def test_regenerate_replaces_latest_answer_in_saved_chat(client, sid, script):
+    add_note(client, sid)
+    script.generate_texts = ["First answer [S1].", "Updated answer [S1].", "Follow-up answer [S1]."]
+    question = {"question": "What is a closure?"}
+    initial = events_of(client.post("/api/chat/stream", headers=H(sid), json=question))[-1]
+    answer_id = initial["meta"]["message_id"]
+    retry = {**question, "replace_answer_id": answer_id}
+    updated = events_of(client.post("/api/chat/stream", headers=H(sid), json=retry))[-1]
+    assert updated["done"] and updated["meta"]["message_id"] == answer_id
+    messages = client.get("/api/notebook", headers=H(sid)).get_json()["messages"]
+    assert [m["message"] for m in messages] == [question["question"], "Updated answer [S1]."]
+    client.post("/api/chat", headers=H(sid), json={"question": "What is lexical scope?"})
+    assert client.post("/api/chat/stream", headers=H(sid), json=retry).status_code == 409
+
+
 # ------------------------------------------------------------------ guards
 def make_client(script, **overrides):
     settings = Settings(rate_limit_enabled=False, **overrides)
@@ -188,7 +233,19 @@ def test_root_and_health(client):
         "briefing", "study_guide", "faq", "timeline", "mindmap", "flashcards", "quiz", "questions"]
 
 
-@pytest.mark.parametrize("url", ["http://127.0.0.1/", "http://169.254.169.254/latest", "ftp://example.com/x"])
+def test_oversize_file_is_rejected_before_queueing():
+    client = make_client(Script(), max_upload_mb=1)
+    sid = new_notebook(client)
+    result = upload(client, sid, "large.txt", b"x" * (1024 * 1024 + 1))
+    assert result.status_code == 413
+    assert client.get("/api/notebook", headers=H(sid)).get_json()["documents"] == []
+
+
+def test_non_object_json_is_rejected(client, sid):
+    assert client.post("/api/notes", headers=H(sid), json=[]).status_code == 400
+
+
+@pytest.mark.parametrize("url", ["http://127.0.0.1/", "http://169.254.169.254/latest", "ftp://example.com/x", "http://["])
 def test_private_and_non_http_urls_are_rejected(client, sid, url):
     r = client.post("/api/library/url", headers=H(sid), json={"url": url})
     assert r.status_code == 400

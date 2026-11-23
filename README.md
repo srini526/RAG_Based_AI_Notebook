@@ -14,7 +14,7 @@ The application is built around two LangGraph workflows: one for asynchronous so
 
 - Create, rename, open, and delete notebooks.
 - Keep separate source libraries, conversations, and generated outputs for each notebook.
-- Upload multiple files or add a public webpage, a PDF URL, or a YouTube link.
+- Upload multiple files, paste text into a source, or add a public webpage, PDF URL, or YouTube link.
 - View upload and ingestion progress, processing status, errors, and passage counts.
 - Select specific sources to scope a chat question or Studio generation.
 - See an automatically generated source guide with a short summary, key topics, and suggested starter questions.
@@ -47,6 +47,8 @@ The Studio panel provides seven user-facing generation tools:
 | Quiz | Interactive multiple-choice quiz with feedback, score, and retry |
 
 You can generate from all ready sources or a selected subset. When a specific topic is supplied, Studio first searches for focused passages. Text-based outputs can be copied or exported as Markdown. Generated outputs are saved with the notebook and can be reopened or deleted.
+
+Use **New note** to write or edit Markdown in Studio. Use **Save to Studio** on a completed chat answer to keep a copy with its original citations.
 
 The chat interface can also recognize requests such as “make me a quiz on closures” and route them directly to the Studio model. The generated item is saved in Studio and linked from the chat response. The API additionally exposes a non-persistent suggested-questions generation kind.
 
@@ -504,6 +506,8 @@ Notebook ownership headers:
 | DELETE | /api/chat | Clear saved chat history for a notebook |
 | POST | /api/generate | Stream a Studio generation using SSE |
 | DELETE | /api/outputs/<output_id> | Delete a saved Studio output |
+| POST | /api/notes | Save a Markdown note or an existing chat answer |
+| PATCH | /api/notes/<output_id> | Edit a saved note |
 
 ### Chat request
 

@@ -8,6 +8,8 @@ vi.mock("../services/api", () => ({
   listLibrary: vi.fn(async () => []),
   renameNotebook: vi.fn(async () => ({ ok: true })),
   deleteOutput: vi.fn(async () => ({ ok: true })),
+  createNote: vi.fn(),
+  updateNote: vi.fn(),
   clearChat: vi.fn(async () => ({ ok: true })),
   uploadFile: vi.fn(),
   addUrl: vi.fn(),
@@ -17,7 +19,8 @@ vi.mock("../services/api", () => ({
   streamGenerate: vi.fn(),
 }));
 
-import { streamChat, streamGenerate } from "../services/api";
+import { addUrl, createNote, streamChat, streamGenerate, updateNote, uploadFile } from "../services/api";
+import AddSourcesDialog from "./Addsourcesdialog";
 import Flashcards from "./Flashcards";
 import Markdown from "./Markdown";
 import MindMap from "./MindMap";
@@ -103,6 +106,32 @@ describe("Studio widgets", () => {
   });
 });
 
+describe("Adding sources", () => {
+  const config = { allowed_extensions: ["txt"], max_upload_mb: 10 };
+
+  it("keeps a failed link error visible inside the dialog", async () => {
+    const onClose = vi.fn();
+    addUrl.mockRejectedValueOnce(new Error("The link is invalid."));
+    render(<AddSourcesDialog config={config} onLink={addUrl} onClose={onClose} />);
+    await userEvent.type(screen.getByRole("textbox", { name: "Link to add" }), "https://example.test");
+    await userEvent.click(screen.getByRole("button", { name: "Add", exact: true }));
+    expect((await screen.findByRole("alert")).textContent).toEqual("The link is invalid.");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("passes pasted text through the regular text file upload", async () => {
+    uploadFile.mockResolvedValueOnce({ id: "d2", name: "Lecture.txt" });
+    render(<NotebookView nid={DATA.notebook.id} data={DATA} theme={null} onHome={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: /add sources/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Paste text" }));
+    await userEvent.type(screen.getByRole("textbox", { name: /source title/i }), "Lecture");
+    await userEvent.type(screen.getByRole("textbox", { name: "Source text" }), "Closures preserve lexical scope.");
+    await userEvent.click(screen.getByRole("button", { name: "Add text source" }));
+    expect(uploadFile).toHaveBeenCalledWith(DATA.notebook.id,
+      expect.objectContaining({ name: "Lecture.txt", type: "text/plain" }), expect.any(Function));
+  });
+});
+
 describe("NotebookView", () => {
   const view = () => render(<NotebookView nid={DATA.notebook.id} data={DATA} theme={null} onHome={() => {}} />);
 
@@ -113,6 +142,33 @@ describe("NotebookView", () => {
     await userEvent.click(screen.getByRole("button", { name: "Source guide" }));
     expect(screen.getByText("All about closures.")).toBeTruthy();
     expect(screen.getAllByText("What is a closure?").length).toBeGreaterThan(0); // starter + guide question
+  });
+
+  it("can save a cited chat answer and edit it in Studio", async () => {
+    const note = { id: "o2", kind: "note", title: "Saved answer", created_at: Date.now() / 1000,
+      content: { markdown: "A closure remembers scope [S1].", sources: [SOURCE] } };
+    createNote.mockResolvedValueOnce(note);
+    updateNote.mockResolvedValueOnce({ ...note, title: "Revision", content: { ...note.content, markdown: "Revised [S1]." } });
+    streamChat.mockImplementationOnce(async (_nid, _body, h) => {
+      h.onToken(note.content.markdown);
+      h.onDone([SOURCE], { mode: "library", message_id: 42 });
+    });
+    view();
+    await userEvent.click(screen.getAllByText("What is a closure?")[0]);
+    await userEvent.click(await screen.findByRole("button", { name: "Save to Studio" }));
+    expect(createNote).toHaveBeenCalledWith(DATA.notebook.id, { message_id: 42 });
+    await userEvent.click(await screen.findByRole("button", { name: /open saved answer/i }));
+    await userEvent.click(await screen.findByRole("button", { name: "Edit note" }));
+    const title = screen.getByRole("textbox", { name: "Title" });
+    const markdown = screen.getByRole("textbox", { name: "Note" });
+    await userEvent.clear(title);
+    await userEvent.type(title, "Revision");
+    await userEvent.clear(markdown);
+    await userEvent.type(markdown, "Revised [[S1].");
+    await userEvent.click(screen.getByRole("button", { name: "Save note" }));
+    expect(updateNote).toHaveBeenCalledWith(DATA.notebook.id, note.id, { title: "Revision", markdown: "Revised [S1]." });
+    expect(await screen.findByRole("heading", { name: "Revision" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Open source 1" })).toHaveLength(2);
   });
 
   it("asks a guide question, streams the answer and lets you open the cited passage", async () => {

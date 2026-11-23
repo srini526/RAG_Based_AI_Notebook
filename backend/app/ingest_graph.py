@@ -144,7 +144,12 @@ def build_ingest_graph(settings, embeddings, transcriber, guide=None):
             progress(runtime, f"Indexing {min(i + EMBED_BATCH, len(texts))}/{len(texts)}…")
         docs = [Document(page_content=t, metadata={"loc": loc}) for t, loc in pieces]
         ctx = runtime.context
-        ctx.lib.add_chunks(ctx.doc.id, docs, np.asarray(vectors, dtype=np.float32))
+        with ctx.lib.lock:
+            if ctx.doc.id not in ctx.lib.docs:
+                return {}
+            if ctx.lib.chunk_total() + len(docs) > settings.max_chunks_per_session:
+                raise UserError("Your library is full. Remove something and try again.")
+            ctx.lib.add_chunks(ctx.doc.id, docs, np.asarray(vectors, dtype=np.float32))
         if guide:  # optional source guide; failures just mean no guide
             progress(runtime, "Writing source guide…")
             made = guide(ctx.doc.name, docs)

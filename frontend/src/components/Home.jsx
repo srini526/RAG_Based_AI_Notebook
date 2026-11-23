@@ -96,6 +96,8 @@ export default function Home({ onOpen }) {
   const [notebooks, setNotebooks] = useState(null); // null = loading
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState("");
+  const visible = notebooks?.filter((book) => book.title.toLowerCase().includes(query.trim().toLowerCase()));
 
   const load = useCallback(async () => {
     try {
@@ -144,9 +146,18 @@ export default function Home({ onOpen }) {
       </p>
 
       {error && (
-        <p className="mt-5 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-300">
-          {error}
-        </p>
+        <div role="alert" className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-300">
+          <p>{error}</p>
+          <button type="button" onClick={load} className="cursor-pointer underline">Reload notebooks</button>
+        </div>
+      )}
+
+      {notebooks?.length > 1 && (
+        <label className="mt-5 block max-w-sm">
+          <span className="sr-only">Search notebooks</span>
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notebooks"
+            className="w-full rounded-xl border border-[#E6E1D6] bg-white px-3 py-2.5 text-sm dark:border-[#35322F] dark:bg-[#1C1B19]" />
+        </label>
       )}
 
       {notebooks === null ? (
@@ -169,7 +180,7 @@ export default function Home({ onOpen }) {
             </button>
           </li>
 
-          {notebooks.map((nb, i) => (
+          {visible.map((nb, i) => (
             <li
               key={nb.id}
               className="group relative h-44 rounded-3xl border border-[#E6E1D6] bg-[#FFFFFF] transition hover:-translate-y-0.5 hover:border-[#C85A32]/50 hover:shadow-md dark:border-[#2A2826] dark:bg-[#1C1B19] dark:hover:border-[#D97757]/50"
@@ -202,6 +213,9 @@ export default function Home({ onOpen }) {
 
       {notebooks?.length === 0 && (
         <p className="mt-6 text-sm text-[#78716C] dark:text-[#A8A29E]">No notebooks yet. Create your first one to get started.</p>
+      )}
+      {query.trim() && notebooks?.length > 0 && visible.length === 0 && (
+        <p role="status" className="mt-6 text-sm text-[#78716C] dark:text-[#A8A29E]">No notebooks match that search.</p>
       )}
 
       <DeviceKey />
