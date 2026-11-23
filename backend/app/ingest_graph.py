@@ -106,7 +106,7 @@ def build_ingest_graph(settings, embeddings, transcriber, guide=None):
         progress(runtime, "Looking for captions…")
         segs = fetch_captions(vid, proxy)
         if segs is None:
-            progress(runtime, "No captions found. Downloading audio…")
+            progress(runtime, "Captions unavailable. Downloading audio…")
             audio = download_audio(vid, runtime.context.workdir, settings)
             segs = transcriber.transcribe_media(audio, runtime.context.workdir, lambda m: progress(runtime, m))
         return {"units": _time_units(segs), "sep": " "}
