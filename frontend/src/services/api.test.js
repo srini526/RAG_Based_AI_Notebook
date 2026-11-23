@@ -63,6 +63,19 @@ describe("streamPost", () => {
     expect(log.quiz).toEqual(quiz);
   });
 
+  it("releases the connection as soon as the server sends its final result", async () => {
+    const cancel = vi.fn();
+    const stream = new ReadableStream({
+      start(controller) { controller.enqueue(enc.encode('data: {"done": true}\n\n')); },
+      cancel,
+    });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(stream)));
+    const { log, handlers } = collect();
+    await streamPost("/api/generate", "n".repeat(32), { kind: "quiz" }, handlers);
+    expect(log.done).not.toBeNull();
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
   it("sends the device key and notebook id as headers", async () => {
     const fetchMock = vi.fn(async () => sseResponse(['data: {"done": true}\n\n']));
     vi.stubGlobal("fetch", fetchMock);

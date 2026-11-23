@@ -114,7 +114,7 @@ export function uploadFile(nid, file, onProgress) {
  */
 export async function streamPost(path, nid, body, handlers = {}) {
   const { onToken, onStep, onReset, onData, onQuestions, onOutput, onDone, onError, signal } = handlers;
-  let finished = false;
+  let reader;
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       method: "POST",
@@ -124,7 +124,7 @@ export async function streamPost(path, nid, body, handlers = {}) {
     });
     if (!res.ok) throw await toApiError(res);
 
-    const reader = res.body.getReader();
+    reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 
@@ -148,17 +148,17 @@ export async function streamPost(path, nid, body, handlers = {}) {
         if (json.questions) onQuestions?.(json.questions);
         if (json.studio_output) onOutput?.(json.studio_output); // a Studio item made from a chat request
         if (json.done) {
-          finished = true;
           onDone?.(json.sources || [], json.meta || {}, json.output || null);
+          return;
         }
       }
     }
-    if (!finished) {
-      throw new ApiError("The connection was interrupted. Please try again.", "stream_interrupted");
-    }
+    throw new ApiError("The connection was interrupted. Please try again.", "stream_interrupted");
   } catch (err) {
     if (err.name === "AbortError") return;
     onError?.(err instanceof ApiError ? err : new ApiError("Couldn't reach the server."));
+  } finally {
+    reader?.cancel().catch(() => {});
   }
 }
 

@@ -5,6 +5,7 @@ import zipfile
 
 import pytest
 from conftest import FakeEmbeddings, FakeTranscriber, FakeWeb, H, Script, new_notebook, upload, wait_ready
+from langchain_core.runnables import RunnableLambda
 
 from app.config import Settings
 from app.db import Repo
@@ -101,6 +102,28 @@ def test_studio_focus_reaches_model_and_is_saved(client, sid, script):
     saved = client.get("/api/notebook", headers=H(sid)).get_json()["outputs"]
     assert saved[0]["content"]["focus"] == "lexical scope"
     assert generate(client, sid, "study_guide", focus=[]).get_json()["error"]["code"] == "bad_focus"
+
+
+def test_studio_retries_empty_markdown_before_saving(client, sid, monkeypatch):
+    add_note(client, sid)
+    chains = client.application.extensions["rag"].generate._chains
+    responses = iter(("  ", "## Overview\nA closure remembers scope. [S1]"))
+    monkeypatch.setattr(chains, "briefing", RunnableLambda(lambda _: next(responses)))
+
+    events = events_of(generate(client, sid, "briefing"))
+    assert [e["step"]["id"] for e in events if "step" in e] == ["read", "briefing", "retry"]
+    assert events[-1]["output"]["content"]["markdown"].startswith("## Overview")
+
+
+def test_studio_reports_unusable_output_without_saving(client, sid, monkeypatch):
+    add_note(client, sid)
+    chains = client.application.extensions["rag"].generate._chains
+    monkeypatch.setattr(chains, "quiz", RunnableLambda(lambda _: {"questions": []}))
+
+    events = events_of(generate(client, sid, "quiz"))
+    assert "Couldn't create a usable quiz" in events[-1]["error"]
+    assert not any("done" in event for event in events)
+    assert client.get("/api/notebook", headers=H(sid)).get_json()["outputs"] == []
 
 
 def test_sample_evenly_keeps_whole_range():

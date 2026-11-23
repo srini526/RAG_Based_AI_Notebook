@@ -211,6 +211,19 @@ html:not(.dark) .hljs-template-variable {
   }
 }
 
+.notebook-layout[data-studio-expanded] {
+  grid-template-columns: minmax(0, 1fr);
+  transition: none;
+}
+
+.notebook-layout[data-studio-expanded] > :not([data-studio]) {
+  display: none;
+}
+
+.notebook-layout[data-studio-expanded] > [data-studio] {
+  display: block;
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
