@@ -44,7 +44,7 @@ def test_stream_chat_emits_steps_tokens_done(client, sid):
     assert r.mimetype == "text/event-stream"
     ev = events_of(r)
     steps = [e["step"]["id"] for e in ev if "step" in e]
-    assert steps == ["analyze", "retrieve", "grade", "generate", "self_check"]
+    assert steps == ["analyze", "retrieve", "grade", "rerank", "generate", "self_check"]
     assert "".join(e.get("token", "") for e in ev) == "Answer from docs [S1]."
     assert ev[-1]["done"] and ev[-1]["sources"][0]["id"] == "S1" and ev[-1]["meta"]["mode"] == "library"
 
