@@ -60,6 +60,14 @@ describe("citations", () => {
     expect(onCite).toHaveBeenCalledWith(SOURCE);
   });
 
+  it("opens citations with the alternate brackets returned by the model", async () => {
+    const onCite = vi.fn();
+    render(<Markdown sources={[SOURCE]} onCite={onCite}>{"Assigned to **Lighthouse Seven**【S1】. Code: `【S2】`."}</Markdown>);
+    await userEvent.click(await screen.findByRole("button", { name: "Open source 1" }));
+    expect(onCite).toHaveBeenCalledWith(SOURCE);
+    expect(screen.getByText("【S2】").tagName).toBe("CODE");
+  });
+
   it("does not render javascript: links", async () => {
     render(<Markdown sources={[]}>{"[click](javascript:alert(1))"}</Markdown>);
     const link = await screen.findByText("click");

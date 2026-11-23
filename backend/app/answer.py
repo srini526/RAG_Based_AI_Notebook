@@ -8,7 +8,7 @@ from .chunking import locator_label
 from .youtube import watch_url
 
 TEXT_MAX = 1500  # passage text kept on each source so the UI can show it
-_CITE = re.compile(r"\[S(\d+)\]")
+_CITE = re.compile(r"\[S[0-9]+\]|【S[0-9]+】")
 
 
 def build_sources(documents: list[Document], lib_docs: dict) -> list[dict]:
@@ -40,14 +40,14 @@ def build_sources(documents: list[Document], lib_docs: dict) -> list[dict]:
 
 def cited_only(answer: str, sources: list[dict]) -> list[dict]:
     """Keep only the sources the answer actually cites (none if it cites nothing)."""
-    cited = {f"S{n}" for n in _CITE.findall(answer)}
+    cited = {token[1:-1] for token in _CITE.findall(answer)}
     return [s for s in sources if s["id"] in cited]
 
 
 def invalid_citations(answer: str, sources: list[dict]) -> list[str]:
     """Citation ids in the answer that don't exist among the sources given to the model."""
     valid = {s["id"] for s in sources}
-    bad = dict.fromkeys(f"S{n}" for n in _CITE.findall(answer))
+    bad = dict.fromkeys(token[1:-1] for token in _CITE.findall(answer))
     return [c for c in bad if c not in valid]
 
 

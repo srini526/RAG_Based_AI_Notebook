@@ -299,10 +299,11 @@ def test_long_answers_are_fact_checked():
 
 # ------------------------------------------------------------ Phase 1: citations
 def test_invalid_citation_forces_one_rewrite_even_without_llm_check():
-    script = Script(); script.generate_texts = ["Wrong [S9].", "Right [S1]."]
+    script = Script(); script.generate_texts = ["Wrong 【S9】.", "Right 【S1】."]
     svc, _, _ = make_service(script, self_check_min_chars=500)
     ev = run(svc, make_lib()[0], "closures")
-    assert text_of(ev) == "Right [S1]." and script.calls_of("check") == []
+    assert text_of(ev) == "Right 【S1】." and script.calls_of("check") == []
+    assert [source["id"] for source in final(ev)["sources"]] == ["S1"]
     assert "S9" in script.calls_of("generate")[1]["feedback"]
 
 

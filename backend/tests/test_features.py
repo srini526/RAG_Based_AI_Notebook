@@ -137,12 +137,13 @@ def test_studio_focus_reaches_model_and_is_saved(client, sid, script):
 def test_studio_retries_empty_markdown_before_saving(client, sid, monkeypatch):
     add_note(client, sid)
     chains = client.application.extensions["rag"].generate._chains
-    responses = iter(("  ", "## Overview\nA closure remembers scope. [S1]"))
+    responses = iter(("  ", "## Overview\nA closure remembers scope. 【S1】"))
     monkeypatch.setattr(chains, "briefing", RunnableLambda(lambda _: next(responses)))
 
     events = events_of(generate(client, sid, "briefing"))
     assert [e["step"]["id"] for e in events if "step" in e] == ["read", "briefing", "retry"]
     assert events[-1]["output"]["content"]["markdown"].startswith("## Overview")
+    assert [source["id"] for source in events[-1]["output"]["content"]["sources"]] == ["S1"]
 
 
 def test_studio_reports_unusable_output_without_saving(client, sid, monkeypatch):
