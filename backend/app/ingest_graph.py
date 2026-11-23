@@ -1,7 +1,7 @@
 """Ingestion as a LangGraph workflow.
 
     START -> (route by kind) -> load_pdf | load_docx | load_pptx | load_text
-                                | load_media | load_youtube | load_web
+                                | load_image | load_media | load_youtube | load_web
           -> chunk -> index -> END            (any step can divert to `fail` -> END)
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ from langgraph.runtime import Runtime
 from . import webpage
 from .chunking import merge_units
 from .errors import UserError
-from .parsers import parse_docx, parse_pdf, parse_pptx, parse_text
+from .parsers import parse_docx, parse_image, parse_pdf, parse_pptx, parse_text
 from .store import Library, LibraryDoc
 from .youtube import download_audio, fetch_captions, fetch_title
 
@@ -62,6 +62,7 @@ def guarded(fn):
 
 LOADER_FOR_KIND = {
     "pdf": "load_pdf", "docx": "load_docx", "pptx": "load_pptx", "text": "load_text",
+    "image": "load_image",
     "audio": "load_media", "video": "load_media", "youtube": "load_youtube", "web": "load_web",
 }
 
@@ -73,7 +74,12 @@ def build_ingest_graph(settings, embeddings, transcriber, guide=None):
     @guarded
     def load_pdf(state: IngestState, runtime: Runtime[IngestContext]):
         progress(runtime, "Reading PDF…")
-        return {"units": parse_pdf(state["path"]), "sep": "\n"}
+        return {"units": parse_pdf(state["path"], lambda msg: progress(runtime, msg)), "sep": "\n"}
+
+    @guarded
+    def load_image(state: IngestState, runtime: Runtime[IngestContext]):
+        progress(runtime, "Reading text in image…")
+        return {"units": parse_image(state["path"], state["ext"]), "sep": "\n"}
 
     @guarded
     def load_docx(state: IngestState, runtime: Runtime[IngestContext]):
@@ -114,7 +120,7 @@ def build_ingest_graph(settings, embeddings, transcriber, guide=None):
     @guarded
     def load_web(state: IngestState, runtime: Runtime[IngestContext]):
         progress(runtime, "Fetching page…")
-        title, units = webpage.extract(state["url"])
+        title, units = webpage.extract(state["url"], lambda msg: progress(runtime, msg))
         runtime.context.doc.name = title
         return {"units": units, "sep": "\n"}
 
@@ -155,7 +161,7 @@ def build_ingest_graph(settings, embeddings, transcriber, guide=None):
         return lambda st: "fail" if st.get("error") else next_node
 
     g = StateGraph(IngestState, context_schema=IngestContext)
-    loaders = {"load_pdf": load_pdf, "load_docx": load_docx, "load_pptx": load_pptx,
+    loaders = {"load_pdf": load_pdf, "load_docx": load_docx, "load_pptx": load_pptx, "load_image": load_image,
                "load_text": load_text, "load_media": load_media, "load_youtube": load_youtube,
                "load_web": load_web}
     for name, fn in loaders.items():

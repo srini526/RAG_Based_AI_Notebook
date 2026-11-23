@@ -4,6 +4,7 @@ import {
   FiFileText,
   FiFilm,
   FiGlobe,
+  FiImage,
   FiMapPin,
   FiMonitor,
   FiMusic,
@@ -12,6 +13,7 @@ import {
 
 const KIND = {
   pdf: { icon: FiFileText, label: "PDF" },
+  image: { icon: FiImage, label: "Image" },
   docx: { icon: FiFileText, label: "Word" },
   text: { icon: FiFileText, label: "Text" },
   pptx: { icon: FiMonitor, label: "Slides" },

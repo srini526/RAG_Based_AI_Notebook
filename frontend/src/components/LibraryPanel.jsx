@@ -5,6 +5,7 @@ import {
   FiFileText,
   FiFilm,
   FiGlobe,
+  FiImage,
   FiLoader,
   FiMonitor,
   FiMusic,
@@ -19,6 +20,7 @@ import { ICON_BTN, PILL_BTN } from "../hooks/Ui.js";
 
 const KIND = {
   pdf: { icon: FiFileText, tint: "bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300" },
+  image: { icon: FiImage, tint: "bg-blue-50 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300" },
   docx: { icon: FiFileText, tint: "bg-blue-50 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300" },
   text: { icon: FiFileText, tint: "bg-stone-100 text-stone-600 dark:bg-stone-400/10 dark:text-stone-300" },
   pptx: { icon: FiMonitor, tint: "bg-orange-50 text-orange-700 dark:bg-orange-400/10 dark:text-orange-300" },
